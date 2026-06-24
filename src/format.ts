@@ -27,9 +27,16 @@ export function sortItems(items: WishItem[]): WishItem[] {
   })
 }
 
-/** Domínio limpo do link (sem protocolo) para exibição. */
+/** Domínio limpo do link (só o host) para exibição. */
 export function linkDomain(link: string): string {
-  return link.replace(/^https?:\/\//, '').replace(/\/$/, '') || '—'
+  if (!link) return '—'
+  try {
+    const host = new URL(linkHref(link)).hostname.replace(/^www\./, '')
+    if (host) return host
+  } catch {
+    // cai no fallback abaixo
+  }
+  return link.replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/\/.*$/, '') || '—'
 }
 
 /** Href navegável a partir de um link sem protocolo. */

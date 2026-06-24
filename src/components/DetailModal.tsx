@@ -131,9 +131,9 @@ export default function DetailModal({ item, vp, onClose, onEdit, onDelete, onTog
 
             {item.link && (
               <a href={linkHref(item.link)} target="_blank" rel="noreferrer" className="soft-hover" style={{ marginTop: 18, display: 'flex', alignItems: 'center', justifyContent: 'space-between', textDecoration: 'none', border: '1px solid #ececec', borderRadius: 13, padding: '13px 15px' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
                   <span style={{ fontFamily: mono, fontSize: 8.5, letterSpacing: '.1em', color: '#a3a3a3', textTransform: 'uppercase' }}>Onde comprar</span>
-                  <span style={{ fontSize: 13.5, fontWeight: 600 }}>{linkDomain(item.link)}</span>
+                  <span style={{ fontSize: 13.5, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{linkDomain(item.link)}</span>
                 </div>
                 <ExternalIcon />
               </a>
