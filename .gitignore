@@ -1,0 +1,36 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+*.tsbuildinfo
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Notas pessoais do vault Obsidian — NÃO publicar no repo público.
+# Usadas apenas como referência local de seed/estrutura.
+lista de leitura.md
+Lista_de_Desejos.md
+*.local.md
+
+# Configuração de ambiente (Fase 2 — Supabase)
+.env
+.env.local
+.env.*.local

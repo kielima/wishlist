@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <rect width="512" height="512" fill="#111111"/>
+  <!-- Coração simples dentro da zona segura maskable (~centro 60%) -->
+  <path fill="#ffffff" d="M256 392c-8 0-16-3-22-9l-96-93c-34-33-34-87 0-120 31-30 80-30 111 0l7 7 7-7c31-30 80-30 111 0 34 33 34 87 0 120l-96 93c-6 6-14 9-22 9z"/>
+</svg>
