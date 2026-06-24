@@ -12,7 +12,7 @@ function scrapeProduct() {
   }
 
   let name = null
-  let image = null
+  let metaImage = null
   let price = null
 
   // 1) JSON-LD (schema.org Product) — fonte mais confiável de preço.
@@ -25,7 +25,7 @@ function scrapeProduct() {
         const isProduct = type === 'Product' || (Array.isArray(type) && type.includes('Product'))
         if (!isProduct) continue
         if (!name && item.name) name = item.name
-        if (!image) image = typeof item.image === 'string' ? item.image : Array.isArray(item.image) ? item.image[0] : null
+        if (!metaImage) metaImage = typeof item.image === 'string' ? item.image : Array.isArray(item.image) ? item.image[0] : null
         let offer = item.offers
         offer = Array.isArray(offer) ? offer[0] : offer
         if (offer && price == null) {
@@ -38,12 +38,31 @@ function scrapeProduct() {
     }
   }
 
-  // 2) Open Graph / Twitter como fallback.
+  // 2) Open Graph / Twitter como fallback de título/imagem/preço.
   name = name || metaContent('meta[property="og:title"]') || document.title
-  image = image || metaContent('meta[property="og:image"]') || metaContent('meta[name="twitter:image"]')
+  metaImage = metaImage || metaContent('meta[property="og:image"]') || metaContent('meta[name="twitter:image"]')
   if (price == null) {
     price = metaContent('meta[property="product:price:amount"]') || metaContent('meta[property="og:price:amount"]')
   }
+
+  // 3) Imagem realmente VISÍVEL na tela: pega a maior <img> renderizada.
+  // Resolve o caso de lojas com og:image fixo numa cor/variante diferente da
+  // que está aberta — a foto que o usuário está vendo (variante selecionada) vence.
+  let visibleImage = null
+  let bestArea = 0
+  for (const img of document.images) {
+    const src = img.currentSrc || img.src
+    if (!src || !/^https?:/i.test(src)) continue
+    const rect = img.getBoundingClientRect()
+    if (rect.width < 200 || rect.height < 200) continue
+    const area = rect.width * rect.height
+    if (area > bestArea) {
+      bestArea = area
+      visibleImage = src
+    }
+  }
+
+  const image = visibleImage || metaImage
 
   return { name, image, price: price != null ? String(price) : null, link: location.href }
 }
