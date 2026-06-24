@@ -40,6 +40,11 @@ export default function EditModal({ item, prefill, vp, onClose, onSave }: Props)
   const editWidth = isNarrow ? '100%' : width < 920 ? 560 : 720
   const editGrid = width < 720 ? '1fr' : '200px 1fr'
 
+  function cycleCurrency() {
+    const i = CURRENCIES.findIndex((c) => c.code === currency)
+    setCurrency(CURRENCIES[(i + 1) % CURRENCIES.length].code)
+  }
+
   function toggleCat(c: string) {
     setCategories((prev) => (prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c]))
   }
@@ -135,23 +140,20 @@ export default function EditModal({ item, prefill, vp, onClose, onSave }: Props)
               <input value={name} onChange={(e) => { setName(e.target.value); if (error) setError(false) }} placeholder="O que você deseja?" style={{ ...underline, fontFamily: display, fontSize: 18, fontWeight: 600, borderBottomColor: error ? '#e2553d' : '#ececec' }} />
               {error && <div style={{ color: '#e2553d', fontSize: 12, marginTop: 6 }}>Dê um nome ao desejo</div>}
 
-              <div style={{ marginTop: 20 }}>
-                <div style={fieldLabel}>Moeda</div>
-                <div style={{ display: 'flex', gap: 8 }}>
-                  {CURRENCIES.map((c) => {
-                    const active = currency === c.code
-                    return (
-                      <button key={c.code} onClick={() => setCurrency(c.code)} className="press" title={c.label} style={{ flex: 1, cursor: 'pointer', borderRadius: 10, padding: '9px 6px', fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 600, background: active ? '#0a0a0a' : '#fff', color: active ? '#fff' : '#6b6b6b', border: active ? '1.5px solid #0a0a0a' : '1.5px solid #ececec' }}>
-                        {c.symbol}
-                      </button>
-                    )
-                  })}
-                </div>
-              </div>
-
               <div style={{ display: 'flex', gap: 16, marginTop: 20 }}>
                 <div style={{ flex: 1 }}>
-                  <div style={fieldLabel}>Preço ({CURRENCY_META[currency].symbol})</div>
+                  <div style={{ ...fieldLabel, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span>Preço</span>
+                    <button
+                      type="button"
+                      onClick={cycleCurrency}
+                      className="press"
+                      title={`${CURRENCY_META[currency].label} — clique para mudar a moeda`}
+                      style={{ cursor: 'pointer', border: '1px solid #e2e2e2', background: '#f6f6f6', borderRadius: 6, padding: '2px 7px', fontFamily: mono, fontSize: 9.5, letterSpacing: '.06em', color: '#6b6b6b', textTransform: 'none' }}
+                    >
+                      {CURRENCY_META[currency].symbol}
+                    </button>
+                  </div>
                   <input value={priceReais} onChange={(e) => setPriceReais(e.target.value.replace(/[^0-9]/g, ''))} inputMode="numeric" placeholder="0" style={{ ...underline, fontFamily: display, fontSize: 16, fontWeight: 600 }} />
                 </div>
                 <div style={{ flex: 1 }}>
