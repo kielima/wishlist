@@ -23,6 +23,14 @@ export default defineConfig(({ command }) => {
         display: 'standalone',
         start_url: base,
         scope: base,
+        // Webclipper no celular: o app aparece no menu "Compartilhar".
+        // Os dados chegam como query params na URL base e o app os processa.
+        share_target: {
+          action: base,
+          method: 'GET',
+          enctype: 'application/x-www-form-urlencoded',
+          params: { title: 'title', text: 'text', url: 'url' },
+        },
         icons: [
           { src: 'icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any' },
           { src: 'icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'maskable' },

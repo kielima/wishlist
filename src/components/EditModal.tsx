@@ -8,6 +8,8 @@ import { Overlay } from './DetailModal'
 
 interface Props {
   item?: WishItem
+  /** Valores iniciais ao criar um desejo via webclipper. */
+  prefill?: { name?: string; priceReais?: string; link?: string; photo?: string }
   vp: Viewport
   onClose: () => void
   onSave: (input: WishItemInput) => void
@@ -19,16 +21,18 @@ const mono = 'var(--font-mono)'
 const fieldLabel: React.CSSProperties = { fontFamily: mono, fontSize: 9.5, letterSpacing: '.1em', color: '#a3a3a3', textTransform: 'uppercase', marginBottom: 8 }
 const underline: React.CSSProperties = { width: '100%', border: 'none', borderBottom: '1.5px solid #ececec', background: 'none', padding: '8px 0', color: '#0a0a0a', outline: 'none' }
 
-export default function EditModal({ item, vp, onClose, onSave }: Props) {
+export default function EditModal({ item, prefill, vp, onClose, onSave }: Props) {
   const { isNarrow, width } = vp
-  const [name, setName] = useState(item?.name ?? '')
-  const [priceReais, setPriceReais] = useState(item?.priceCents != null ? String(Math.round(item.priceCents / 100)) : '')
-  const [link, setLink] = useState(item?.link ?? '')
+  const [name, setName] = useState(item?.name ?? prefill?.name ?? '')
+  const [priceReais, setPriceReais] = useState(
+    item?.priceCents != null ? String(Math.round(item.priceCents / 100)) : (prefill?.priceReais ?? ''),
+  )
+  const [link, setLink] = useState(item?.link ?? prefill?.link ?? '')
   const [description, setDescription] = useState(item?.description ?? '')
   const [priority, setPriority] = useState<Priority>(item?.priority ?? 'should')
   const [categories, setCategories] = useState<string[]>(item?.categories ?? [])
   const [status, setStatus] = useState<Status>(item?.status ?? 'wanted')
-  const [photo, setPhoto] = useState<string | null>(item?.photo ?? null)
+  const [photo, setPhoto] = useState<string | null>(item?.photo ?? prefill?.photo ?? null)
   const [error, setError] = useState(false)
 
   const editWidth = isNarrow ? '100%' : width < 920 ? 560 : 720

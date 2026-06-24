@@ -1,7 +1,8 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useWishlist } from './useWishlist'
 import { useViewport } from './useViewport'
 import { fileToDataUrl, primaryCategory, sortItems } from './format'
+import { resolveClip, takePendingClip, type ClipPrefill } from './clip'
 import { isSupabaseConfigured } from './supabase'
 import { signOut, useSession } from './auth'
 import type { Receipt, WishItem, WishItemInput } from './types'
@@ -34,6 +35,7 @@ function WishlistApp({ onSignOut }: { onSignOut?: () => void }) {
   const [modal, setModal] = useState<Modal>(null)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [editingItem, setEditingItem] = useState<WishItem | undefined>(undefined)
+  const [clipPrefill, setClipPrefill] = useState<ClipPrefill | undefined>(undefined)
   const [toast, setToast] = useState<{ msg: string; key: number } | null>(null)
 
   const current = items.find((i) => i.id === selectedId)
@@ -60,12 +62,26 @@ function WishlistApp({ onSignOut }: { onSignOut?: () => void }) {
     setToast({ msg, key: Date.now() })
   }
 
+  // Webclipper: ao abrir via Compartilhar/extensão, busca os dados do produto
+  // e abre "Novo desejo" já preenchido.
+  useEffect(() => {
+    const pending = takePendingClip()
+    if (!pending) return
+    setToast({ msg: 'Buscando dados do produto…', key: Date.now() })
+    resolveClip(pending).then((pf) => {
+      setClipPrefill(pf)
+      setEditingItem(undefined)
+      setModal('edit')
+    })
+  }, [])
+
   function openDetail(id: string) {
     setSelectedId(id)
     setModal('detail')
   }
   function newItem() {
     setEditingItem(undefined)
+    setClipPrefill(undefined)
     setModal('edit')
   }
   function editCurrent() {
@@ -75,6 +91,7 @@ function WishlistApp({ onSignOut }: { onSignOut?: () => void }) {
   function closeModal() {
     setModal(null)
     setEditingItem(undefined)
+    setClipPrefill(undefined)
   }
   function togglePanel() {
     setPanelOpen((v) => !v)
@@ -173,7 +190,7 @@ function WishlistApp({ onSignOut }: { onSignOut?: () => void }) {
       {modal === 'detail' && current && (
         <DetailModal item={current} vp={vp} onClose={closeModal} onEdit={editCurrent} onDelete={deleteCurrent} onToggleBought={toggleBought} onAttachReceipt={attachReceipt} onRemoveReceipt={removeReceipt} />
       )}
-      {modal === 'edit' && <EditModal item={editingItem} vp={vp} onClose={closeModal} onSave={handleSave} />}
+      {modal === 'edit' && <EditModal item={editingItem} prefill={clipPrefill} vp={vp} onClose={closeModal} onSave={handleSave} />}
 
       {toast && <Toast key={toast.key} message={toast.msg} />}
     </div>
