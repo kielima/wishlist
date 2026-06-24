@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useWishlist } from './useWishlist'
 import { useViewport } from './useViewport'
 import { fileToDataUrl, primaryCategory, sortItems } from './format'
+import { RatesContext, toBRLCents, useLiveRates } from './currency'
 import { resolveClip, takePendingClip, type ClipPrefill } from './clip'
 import { isSupabaseConfigured } from './supabase'
 import { signOut, useSession } from './auth'
@@ -24,6 +25,7 @@ const HEADINGS: Record<Filter, string> = { todos: 'Tudo', desejados: 'Desejados'
 
 function WishlistApp({ onSignOut }: { onSignOut?: () => void }) {
   const { items, create, update, remove } = useWishlist()
+  const rates = useLiveRates()
   const vp = useViewport()
   const { isNarrow, hasSidebar, isWide } = vp
 
@@ -40,7 +42,9 @@ function WishlistApp({ onSignOut }: { onSignOut?: () => void }) {
 
   const current = items.find((i) => i.id === selectedId)
 
-  const wantedTotal = items.filter((i) => i.status === 'wanted').reduce((s, i) => s + (i.priceCents ?? 0), 0)
+  const wantedTotal = items
+    .filter((i) => i.status === 'wanted')
+    .reduce((s, i) => s + toBRLCents(i.priceCents, i.currency, rates), 0)
 
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -144,6 +148,7 @@ function WishlistApp({ onSignOut }: { onSignOut?: () => void }) {
   const heading = category ?? HEADINGS[filter]
 
   return (
+    <RatesContext.Provider value={rates}>
     <div className="wl-root">
       {hasSidebar && (
         <Sidebar items={items} filter={filter} setFilter={setFilter} category={category} setCategory={setCategory} onNew={newItem} />
@@ -194,6 +199,7 @@ function WishlistApp({ onSignOut }: { onSignOut?: () => void }) {
 
       {toast && <Toast key={toast.key} message={toast.msg} />}
     </div>
+    </RatesContext.Provider>
   )
 }
 
