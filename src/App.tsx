@@ -110,7 +110,8 @@ function WishlistApp({ onSignOut }: { onSignOut?: () => void }) {
       setSelectedId(created.id)
     }
     setEditingItem(undefined)
-    setModal('detail')
+    setClipPrefill(undefined)
+    setModal(null)
     flash('Salvo')
   }
 
