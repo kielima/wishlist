@@ -45,26 +45,24 @@ function scrapeProduct() {
     price = metaContent('meta[property="product:price:amount"]') || metaContent('meta[property="og:price:amount"]')
   }
 
-  // 3) Imagem realmente VISÍVEL na tela: pega a maior <img> renderizada.
-  // Resolve o caso de lojas com og:image fixo numa cor/variante diferente da
-  // que está aberta — a foto que o usuário está vendo (variante selecionada) vence.
-  let visibleImage = null
-  let bestArea = 0
+  // 3) Imagens VISÍVEIS na tela: coleta as <img> grandes, ordenadas pela área.
+  // Assim o usuário pode escolher (resolve cores/variantes e ângulos), e a maior
+  // visível vira a sugestão padrão — não o og:image, que costuma ser fixo.
+  const visible = []
   for (const img of document.images) {
     const src = img.currentSrc || img.src
     if (!src || !/^https?:/i.test(src)) continue
     const rect = img.getBoundingClientRect()
     if (rect.width < 200 || rect.height < 200) continue
-    const area = rect.width * rect.height
-    if (area > bestArea) {
-      bestArea = area
-      visibleImage = src
-    }
+    visible.push({ src, area: rect.width * rect.height })
   }
+  visible.sort((a, b) => b.area - a.area)
 
-  const image = visibleImage || metaImage
+  const images = []
+  for (const v of visible) if (!images.includes(v.src)) images.push(v.src)
+  if (metaImage && !images.includes(metaImage)) images.push(metaImage)
 
-  return { name, image, price: price != null ? String(price) : null, link: location.href }
+  return { name, images: images.slice(0, 8), price: price != null ? String(price) : null, link: location.href }
 }
 
 chrome.action.onClicked.addListener(async (tab) => {
@@ -80,7 +78,12 @@ chrome.action.onClicked.addListener(async (tab) => {
 
   const params = new URLSearchParams({ clip: '1' })
   if (result.name) params.set('name', result.name)
-  if (result.image) params.set('image', result.image)
+  if (result.images && result.images.length) {
+    params.set('image', result.images[0])
+    params.set('images', JSON.stringify(result.images))
+  } else if (result.image) {
+    params.set('image', result.image)
+  }
   if (result.price) params.set('price', result.price)
   if (result.link) params.set('link', result.link)
 

@@ -6,6 +6,24 @@ export interface ClipPrefill {
   priceReais?: string
   link?: string
   photo?: string
+  /** Imagens candidatas detectadas na página, para o usuário escolher. */
+  photos?: string[]
+}
+
+function parseList(s?: string): string[] {
+  if (!s) return []
+  try {
+    const arr = JSON.parse(s)
+    return Array.isArray(arr) ? arr.filter((x) => typeof x === 'string') : []
+  } catch {
+    return []
+  }
+}
+
+function dedupe(list: (string | undefined | null)[]): string[] {
+  const out: string[] = []
+  for (const x of list) if (x && !out.includes(x)) out.push(x)
+  return out
 }
 
 const KEY = 'wishlist:pendingClip'
@@ -15,6 +33,8 @@ interface RawClip {
   name?: string
   price?: string
   image?: string
+  /** JSON com a lista de imagens candidatas. */
+  images?: string
   link?: string
   // vindo do Compartilhar (só a URL/título)
   url?: string
@@ -43,6 +63,7 @@ export function stashIncomingClip(): void {
     name: p.get('name') ?? undefined,
     price: p.get('price') ?? undefined,
     image: p.get('image') ?? undefined,
+    images: p.get('images') ?? undefined,
     link: p.get('link') ?? undefined,
     url: p.get('url') ?? undefined,
     title: p.get('title') ?? undefined,
@@ -75,12 +96,14 @@ export function takePendingClip(): RawClip | null {
  */
 export async function resolveClip(raw: RawClip): Promise<ClipPrefill> {
   // Caso 1: extensão já mandou tudo.
-  if (raw.name || raw.image || (raw.link && !raw.url)) {
+  if (raw.name || raw.image || raw.images || (raw.link && !raw.url)) {
+    const photos = dedupe([...parseList(raw.images), raw.image])
     return {
       name: raw.name,
       priceReais: raw.price ? String(Math.round(parseFloat(raw.price))) : undefined,
       link: raw.link,
-      photo: raw.image,
+      photo: photos[0],
+      photos,
     }
   }
 
@@ -92,11 +115,13 @@ export async function resolveClip(raw: RawClip): Promise<ClipPrefill> {
   try {
     const { data, error } = await supabase.functions.invoke('clip', { body: { url } })
     if (error || !data) return { name: raw.title, link: url }
+    const photos = dedupe([...(Array.isArray(data.images) ? data.images : []), data.image])
     return {
       name: data.name || raw.title,
       priceReais: data.price != null ? String(Math.round(Number(data.price))) : undefined,
       link: data.link || url,
-      photo: data.image || undefined,
+      photo: photos[0],
+      photos,
     }
   } catch {
     return { name: raw.title, link: url }

@@ -9,7 +9,7 @@ import { Overlay } from './DetailModal'
 interface Props {
   item?: WishItem
   /** Valores iniciais ao criar um desejo via webclipper. */
-  prefill?: { name?: string; priceReais?: string; link?: string; photo?: string }
+  prefill?: { name?: string; priceReais?: string; link?: string; photo?: string; photos?: string[] }
   vp: Viewport
   onClose: () => void
   onSave: (input: WishItemInput) => void
@@ -89,6 +89,27 @@ export default function EditModal({ item, prefill, vp, onClose, onSave }: Props)
                 )}
                 <input type="file" accept="image/*" onChange={async (e) => { const f = e.target.files?.[0]; if (f) setPhoto(await fileToDataUrl(f)); e.target.value = '' }} style={{ display: 'none' }} />
               </label>
+
+              {prefill?.photos && prefill.photos.length > 1 && (
+                <div style={{ marginTop: 12 }}>
+                  <div style={fieldLabel}>Escolher imagem</div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                    {prefill.photos.map((url) => {
+                      const active = photo === url
+                      return (
+                        <button
+                          key={url}
+                          onClick={() => setPhoto(url)}
+                          title="Usar esta imagem"
+                          style={{ width: 52, height: 52, borderRadius: 10, padding: 0, cursor: 'pointer', overflow: 'hidden', background: '#f4f4f4', border: active ? '2px solid #0a0a0a' : '1.5px solid #ececec' }}
+                        >
+                          <img src={url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
 
               <div style={{ marginTop: 18 }}>
                 <div style={fieldLabel}>Status</div>

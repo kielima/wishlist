@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Wishlist Clipper",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Salva produtos (nome, foto, link e preço) direto na sua Wishlist.",
   "permissions": ["activeTab", "scripting"],
   "action": {

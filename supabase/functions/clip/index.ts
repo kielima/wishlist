@@ -42,8 +42,8 @@ function decode(s: string): string {
 }
 
 /** Procura um objeto Product nos blocos JSON-LD (schema.org). */
-function fromJsonLd(html: string): { name?: string; image?: string; price?: number; currency?: string } {
-  const out: { name?: string; image?: string; price?: number; currency?: string } = {}
+function fromJsonLd(html: string): { name?: string; images: string[]; price?: number; currency?: string } {
+  const out: { name?: string; images: string[]; price?: number; currency?: string } = { images: [] }
   const blocks = html.matchAll(/<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi)
   for (const b of blocks) {
     let parsed: unknown
@@ -62,7 +62,8 @@ function fromJsonLd(html: string): { name?: string; image?: string; price?: numb
         if (!isProduct) continue
         if (typeof item.name === 'string' && !out.name) out.name = item.name
         const img = item.image
-        if (!out.image) out.image = typeof img === 'string' ? img : Array.isArray(img) ? (img[0] as string) : undefined
+        const imgs = typeof img === 'string' ? [img] : Array.isArray(img) ? (img as string[]) : []
+        for (const u of imgs) if (typeof u === 'string' && !out.images.includes(u)) out.images.push(u)
         const offers = item.offers as Record<string, unknown> | Record<string, unknown>[] | undefined
         const offer = Array.isArray(offers) ? offers[0] : offers
         if (offer && typeof offer === 'object') {
@@ -130,11 +131,15 @@ Deno.serve(async (req: Request) => {
 
     const ld = fromJsonLd(html)
     const name = ld.name || meta(html, 'og:title') || titleTag(html) || ''
-    const image = ld.image || meta(html, 'og:image') || meta(html, 'twitter:image') || null
+    const ogImage = meta(html, 'og:image')
+    const twImage = meta(html, 'twitter:image')
+    const images: string[] = []
+    for (const u of [...ld.images, ogImage, twImage]) if (u && !images.includes(u)) images.push(u)
+    const image = images[0] ?? null
     const price = ld.price ?? parsePriceMeta(html)
     const currency = ld.currency || meta(html, 'og:price:currency') || null
 
-    return json({ name, image, price, currency, link: url })
+    return json({ name, image, images, price, currency, link: url })
   } catch (e) {
     return json({ error: String(e) }, 500)
   }
