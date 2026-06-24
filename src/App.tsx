@@ -102,12 +102,20 @@ function WishlistApp({ onSignOut }: { onSignOut?: () => void }) {
   }
 
   async function handleSave(input: WishItemInput) {
-    if (editingItem) {
-      await update(editingItem.id, input)
-      setSelectedId(editingItem.id)
-    } else {
-      const created = await create(input)
-      setSelectedId(created.id)
+    try {
+      if (editingItem) {
+        await update(editingItem.id, input)
+        setSelectedId(editingItem.id)
+      } else {
+        const created = await create(input)
+        setSelectedId(created.id)
+      }
+    } catch (e) {
+      // Sem feedback, uma falha (ex.: erro do Supabase) deixava o modal travado
+      // e nada salvo — sem o usuário saber o porquê.
+      console.error('Falha ao salvar desejo', e)
+      flash('Não consegui salvar. Tente de novo.')
+      return
     }
     setEditingItem(undefined)
     setClipPrefill(undefined)
