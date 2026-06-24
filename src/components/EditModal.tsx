@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import { CATEGORIES, PRIORITIES, STATUSES } from '../constants'
 import { fileToDataUrl } from '../format'
+import { CURRENCIES, CURRENCY_META } from '../currency'
 import type { Viewport } from '../useViewport'
-import type { Priority, Status, WishItem, WishItemInput } from '../types'
+import type { Currency, Priority, Status, WishItem, WishItemInput } from '../types'
 import { CameraIcon } from './Icons'
 import { Overlay } from './DetailModal'
 
@@ -27,6 +28,7 @@ export default function EditModal({ item, prefill, vp, onClose, onSave }: Props)
   const [priceReais, setPriceReais] = useState(
     item?.priceCents != null ? String(Math.round(item.priceCents / 100)) : (prefill?.priceReais ?? ''),
   )
+  const [currency, setCurrency] = useState<Currency>(item?.currency ?? 'BRL')
   const [link, setLink] = useState(item?.link ?? prefill?.link ?? '')
   const [description, setDescription] = useState(item?.description ?? '')
   const [priority, setPriority] = useState<Priority>(item?.priority ?? 'should')
@@ -52,6 +54,7 @@ export default function EditModal({ item, prefill, vp, onClose, onSave }: Props)
       description: description.trim(),
       link: link.trim(),
       priceCents: priceReais ? (parseInt(priceReais, 10) || 0) * 100 : null,
+      currency,
       priority,
       status,
       categories,
@@ -132,9 +135,23 @@ export default function EditModal({ item, prefill, vp, onClose, onSave }: Props)
               <input value={name} onChange={(e) => { setName(e.target.value); if (error) setError(false) }} placeholder="O que você deseja?" style={{ ...underline, fontFamily: display, fontSize: 18, fontWeight: 600, borderBottomColor: error ? '#e2553d' : '#ececec' }} />
               {error && <div style={{ color: '#e2553d', fontSize: 12, marginTop: 6 }}>Dê um nome ao desejo</div>}
 
+              <div style={{ marginTop: 20 }}>
+                <div style={fieldLabel}>Moeda</div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  {CURRENCIES.map((c) => {
+                    const active = currency === c.code
+                    return (
+                      <button key={c.code} onClick={() => setCurrency(c.code)} className="press" title={c.label} style={{ flex: 1, cursor: 'pointer', borderRadius: 10, padding: '9px 6px', fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 600, background: active ? '#0a0a0a' : '#fff', color: active ? '#fff' : '#6b6b6b', border: active ? '1.5px solid #0a0a0a' : '1.5px solid #ececec' }}>
+                        {c.symbol}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+
               <div style={{ display: 'flex', gap: 16, marginTop: 20 }}>
                 <div style={{ flex: 1 }}>
-                  <div style={fieldLabel}>Preço (R$)</div>
+                  <div style={fieldLabel}>Preço ({CURRENCY_META[currency].symbol})</div>
                   <input value={priceReais} onChange={(e) => setPriceReais(e.target.value.replace(/[^0-9]/g, ''))} inputMode="numeric" placeholder="0" style={{ ...underline, fontFamily: display, fontSize: 16, fontWeight: 600 }} />
                 </div>
                 <div style={{ flex: 1 }}>

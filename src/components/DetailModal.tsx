@@ -1,5 +1,6 @@
 import { PRIORITY_META } from '../constants'
 import { formatPrice, initialOf, linkDomain, linkHref, primaryCategory } from '../format'
+import { formatMoney, toBRLCents, useRates } from '../currency'
 import type { Viewport } from '../useViewport'
 import type { WishItem } from '../types'
 import { CheckIcon, CloseIcon, DocIcon, ExternalIcon, TrashIcon } from './Icons'
@@ -21,6 +22,7 @@ const label: React.CSSProperties = { fontFamily: mono, fontSize: 9.5, letterSpac
 
 export default function DetailModal({ item, vp, onClose, onEdit, onDelete, onToggleBought, onAttachReceipt, onRemoveReceipt }: Props) {
   const { isNarrow, width } = vp
+  const rates = useRates()
   const bought = item.status === 'bought'
   const pri = PRIORITY_META[item.priority]
   const tick = (i: number) => (i < pri.ticks ? '#0a0a0a' : '#ececec')
@@ -62,7 +64,12 @@ export default function DetailModal({ item, vp, onClose, onEdit, onDelete, onTog
           <div data-scroll style={{ flex: 1, overflow: 'auto', padding: '6px 26px 18px' }}>
             <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16 }}>
               <div style={{ fontFamily: display, fontSize: 24, fontWeight: 700, letterSpacing: '-.01em', lineHeight: 1.15 }}>{item.name}</div>
-              <div style={{ fontFamily: display, fontSize: 22, fontWeight: 600, whiteSpace: 'nowrap' }}>{formatPrice(item.priceCents)}</div>
+              <div style={{ textAlign: 'right' }}>
+                <div style={{ fontFamily: display, fontSize: 22, fontWeight: 600, whiteSpace: 'nowrap' }}>{formatPrice(toBRLCents(item.priceCents, item.currency, rates))}</div>
+                {item.currency !== 'BRL' && item.priceCents != null && (
+                  <div style={{ fontFamily: mono, fontSize: 10.5, color: '#a3a3a3', marginTop: 3, whiteSpace: 'nowrap' }}>{formatMoney(item.priceCents, item.currency)}</div>
+                )}
+              </div>
             </div>
 
             <div style={{ marginTop: 18 }}>

@@ -8,6 +8,9 @@ export type Priority = 'must' | 'should' | 'could' | 'wont'
 /** Estado de aquisição do item. */
 export type Status = 'wanted' | 'bought'
 
+/** Moeda em que o preço do item foi informado. */
+export type Currency = 'BRL' | 'USD' | 'EUR' | 'CNY'
+
 /** Nota fiscal anexada a um item comprado (foto ou PDF). */
 export interface Receipt {
   name: string
@@ -26,8 +29,10 @@ export interface WishItem {
   description: string
   /** URL da loja/referência (sem protocolo, ex: "amazon.com.br"). */
   link: string
-  /** Preço estimado em centavos (evita erros de ponto flutuante). null = sem preço. */
+  /** Preço estimado em centavos, na moeda do item. null = sem preço. */
   priceCents: number | null
+  /** Moeda em que o preço foi informado. As telas convertem para BRL na exibição. */
+  currency: Currency
   priority: Priority
   status: Status
   /** Categorias/tags. A primeira é tratada como categoria principal na UI. */

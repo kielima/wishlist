@@ -1,5 +1,6 @@
 import { PRIORITY_META } from '../constants'
 import { formatPrice, initialOf, primaryCategory } from '../format'
+import { toBRLCents, useRates } from '../currency'
 import type { WishItem } from '../types'
 import { CheckIcon } from './Icons'
 import PriorityTicks from './PriorityTicks'
@@ -37,6 +38,7 @@ function nf(item: WishItem) {
 
 /** Tabela densa (desktop, modo Lista). */
 export function ItemTable({ items, width, onOpen }: { items: WishItem[]; width: number; onOpen: (id: string) => void }) {
+  const rates = useRates()
   const colTemplate =
     width < 980
       ? 'minmax(0,2.4fr) minmax(0,1fr) minmax(0,1.1fr) minmax(0,0.8fr)'
@@ -78,7 +80,7 @@ export function ItemTable({ items, width, onOpen }: { items: WishItem[]; width: 
               <span style={{ fontFamily: mono, fontSize: 9, letterSpacing: '.05em', color: '#bdbdbd', textTransform: 'uppercase', width: 42 }}>{PRIORITY_META[it.priority].label}</span>
               <PriorityTicks priority={it.priority} w={6} h={12} />
             </div>
-            <div style={{ fontFamily: display, fontSize: 14.5, fontWeight: 600, color: bought ? '#bdbdbd' : '#0a0a0a', textAlign: 'right' }}>{formatPrice(it.priceCents)}</div>
+            <div style={{ fontFamily: display, fontSize: 14.5, fontWeight: 600, color: bought ? '#bdbdbd' : '#0a0a0a', textAlign: 'right' }}>{formatPrice(toBRLCents(it.priceCents, it.currency, rates))}</div>
           </div>
         )
       })}
@@ -88,6 +90,7 @@ export function ItemTable({ items, width, onOpen }: { items: WishItem[]; width: 
 
 /** Lista compacta (mobile, modo Lista). */
 export function CompactList({ items, onOpen }: { items: WishItem[]; onOpen: (id: string) => void }) {
+  const rates = useRates()
   return (
     <div style={{ padding: '6px 0 32px' }}>
       {items.map((it, idx) => {
@@ -114,7 +117,7 @@ export function CompactList({ items, onOpen }: { items: WishItem[]; onOpen: (id:
               </div>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
-              <span style={{ fontFamily: display, fontSize: 14, fontWeight: 600, color: bought ? '#bdbdbd' : '#0a0a0a' }}>{formatPrice(it.priceCents)}</span>
+              <span style={{ fontFamily: display, fontSize: 14, fontWeight: 600, color: bought ? '#bdbdbd' : '#0a0a0a' }}>{formatPrice(toBRLCents(it.priceCents, it.currency, rates))}</span>
               <PriorityTicks priority={it.priority} w={5} h={10} gap={2.5} />
             </div>
           </div>
@@ -126,6 +129,7 @@ export function CompactList({ items, onOpen }: { items: WishItem[]; onOpen: (id:
 
 /** Grade de galeria (qualquer largura). */
 export function GalleryGrid({ items, isNarrow, onOpen }: { items: WishItem[]; isNarrow: boolean; onOpen: (id: string) => void }) {
+  const rates = useRates()
   return (
     <div style={{ display: 'grid', gridTemplateColumns: `repeat(auto-fill, minmax(${isNarrow ? '150px' : '190px'}, 1fr))`, gap: 20, padding: '22px 28px 40px' }}>
       {items.map((it, idx) => {
@@ -148,7 +152,7 @@ export function GalleryGrid({ items, isNarrow, onOpen }: { items: WishItem[]; is
             </div>
             <div style={{ marginTop: 11, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
               <span style={{ fontFamily: display, fontSize: 14.5, fontWeight: 600, color: bought ? '#b0b0b0' : '#0a0a0a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', textDecoration: bought ? 'line-through' : 'none' }}>{it.name}</span>
-              <span style={{ fontFamily: display, fontSize: 14, fontWeight: 600, color: bought ? '#bdbdbd' : '#0a0a0a', flexShrink: 0 }}>{formatPrice(it.priceCents)}</span>
+              <span style={{ fontFamily: display, fontSize: 14, fontWeight: 600, color: bought ? '#bdbdbd' : '#0a0a0a', flexShrink: 0 }}>{formatPrice(toBRLCents(it.priceCents, it.currency, rates))}</span>
             </div>
             <div style={{ marginTop: 8 }}>
               <PriorityTicks priority={it.priority} w="flex" h={3} gap={3} />

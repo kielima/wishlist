@@ -9,6 +9,7 @@ interface Row {
   description: string
   link: string
   price_cents: number | null
+  currency: WishItem['currency'] | null
   priority: WishItem['priority']
   status: WishItem['status']
   categories: string[] | null
@@ -25,6 +26,7 @@ function fromRow(r: Row): WishItem {
     description: r.description ?? '',
     link: r.link ?? '',
     priceCents: r.price_cents,
+    currency: r.currency ?? 'BRL',
     priority: r.priority,
     status: r.status,
     categories: r.categories ?? [],
@@ -42,6 +44,7 @@ function toRow(patch: Partial<WishItemInput>): Record<string, unknown> {
   if (patch.description !== undefined) row.description = patch.description
   if (patch.link !== undefined) row.link = patch.link
   if (patch.priceCents !== undefined) row.price_cents = patch.priceCents
+  if (patch.currency !== undefined) row.currency = patch.currency
   if (patch.priority !== undefined) row.priority = patch.priority
   if (patch.status !== undefined) row.status = patch.status
   if (patch.categories !== undefined) row.categories = patch.categories

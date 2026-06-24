@@ -1,5 +1,6 @@
 import { PRIORITIES } from '../constants'
 import { formatPrice, primaryCategory } from '../format'
+import { toBRLCents, useRates } from '../currency'
 import { useCountUp } from '../useCountUp'
 import type { WishItem } from '../types'
 import { CloseIcon } from './Icons'
@@ -21,24 +22,26 @@ const label: React.CSSProperties = { fontFamily: mono, fontSize: 9.5, letterSpac
 
 export default function ResumoPanel({ items, open, inline, isNarrow, onClose, onSignOut }: Props) {
   const t = useCountUp(open)
+  const rates = useRates()
+  const brl = (i: WishItem) => toBRLCents(i.priceCents, i.currency, rates)
 
   const wanted = items.filter((i) => i.status === 'wanted')
   const bought = items.filter((i) => i.status === 'bought')
-  const totalWanted = wanted.reduce((s, i) => s + (i.priceCents ?? 0), 0)
-  const spent = bought.reduce((s, i) => s + (i.priceCents ?? 0), 0)
+  const totalWanted = wanted.reduce((s, i) => s + brl(i), 0)
+  const spent = bought.reduce((s, i) => s + brl(i), 0)
   const progress = items.length ? (bought.length / items.length) * 100 * t : 0
 
   const catMap: Record<string, number> = {}
   wanted.forEach((i) => {
     const c = primaryCategory(i)
-    catMap[c] = (catMap[c] ?? 0) + (i.priceCents ?? 0)
+    catMap[c] = (catMap[c] ?? 0) + brl(i)
   })
   const catArr = Object.entries(catMap).sort((a, b) => b[1] - a[1])
   const catMax = catArr.length ? catArr[0][1] : 1
 
   const priBreakdown = PRIORITIES.map((p) => {
     const list = wanted.filter((i) => i.priority === p.value)
-    return { meta: p, count: list.length, cents: list.reduce((s, i) => s + (i.priceCents ?? 0), 0) }
+    return { meta: p, count: list.length, cents: list.reduce((s, i) => s + brl(i), 0) }
   })
 
   return (
