@@ -18,8 +18,14 @@ export default function Login() {
     try {
       await signInWithEmail(email.trim())
       setSent(true)
-    } catch {
-      setError('Não consegui enviar o link. Confira o e-mail e tente de novo.')
+    } catch (e) {
+      const err = e as { status?: number; code?: string; message?: string }
+      const rateLimited = err.status === 429 || err.code?.includes('rate') || /rate limit/i.test(err.message ?? '')
+      setError(
+        rateLimited
+          ? 'Muitas tentativas. Aguarde alguns minutos e tente de novo (ou confira a caixa de spam — o link pode já ter chegado).'
+          : 'Não consegui enviar o link. Confira o e-mail e tente de novo.',
+      )
     } finally {
       setBusy(false)
     }
