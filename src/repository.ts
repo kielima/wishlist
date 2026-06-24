@@ -1,4 +1,6 @@
 import { db } from './db'
+import { isSupabaseConfigured } from './supabase'
+import { SupabaseRepository } from './repositorySupabase'
 import type { WishItem, WishItemInput } from './types'
 
 /**
@@ -53,5 +55,11 @@ class LocalRepository implements WishlistRepository {
   }
 }
 
-/** Instância única usada pela aplicação. */
-export const repository: WishlistRepository = new LocalRepository()
+/**
+ * Instância única usada pela aplicação.
+ * Com chaves do Supabase → sincroniza entre aparelhos (Fase 2).
+ * Sem chaves → modo local em IndexedDB (Fase 1 / desenvolvimento).
+ */
+export const repository: WishlistRepository = isSupabaseConfigured
+  ? new SupabaseRepository()
+  : new LocalRepository()

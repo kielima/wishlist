@@ -8,6 +8,8 @@ interface Props {
   items: WishItem[]
   onHome: () => void
   onNew: () => void
+  /** Sair da conta (só no modo sincronizado). */
+  onSignOut?: () => void
 }
 
 const mono = 'var(--font-mono)'
@@ -45,7 +47,7 @@ function useCountUp(durationMs = 750): number {
   return t
 }
 
-export default function Stats({ items, onHome, onNew }: Props) {
+export default function Stats({ items, onHome, onNew, onSignOut }: Props) {
   const t = useCountUp()
 
   const wanted = items.filter((i) => i.status === 'wanted')
@@ -141,6 +143,15 @@ export default function Stats({ items, onHome, onNew }: Props) {
             </div>
           ))}
         </div>
+
+        {onSignOut && (
+          <button
+            onClick={onSignOut}
+            style={{ marginTop: 34, width: '100%', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: 13.5, fontWeight: 600, color: '#bdbdbd', padding: 8 }}
+          >
+            Sair da conta
+          </button>
+        )}
       </div>
 
       <TabBar active="stats" onHome={onHome} onStats={() => {}} onNew={onNew} />

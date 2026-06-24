@@ -1,18 +1,21 @@
 import { useState } from 'react'
 import { useWishlist } from './useWishlist'
 import { fileToDataUrl } from './format'
+import { isSupabaseConfigured } from './supabase'
+import { signOut, useSession } from './auth'
 import type { Receipt, WishItem, WishItemInput } from './types'
 import Home from './screens/Home'
 import Detail from './screens/Detail'
 import Edit from './screens/Edit'
 import Stats from './screens/Stats'
+import Login from './screens/Login'
 import Toast from './components/Toast'
 
 type Screen = 'home' | 'detail' | 'edit' | 'stats'
 type Filter = 'todos' | 'desejados' | 'concluidos'
 type Layout = 'editorial' | 'gallery'
 
-export default function App() {
+function WishlistApp({ onSignOut }: { onSignOut?: () => void }) {
   const { items, loading, create, update, remove } = useWishlist()
 
   const [screen, setScreen] = useState<Screen>('home')
@@ -95,7 +98,7 @@ export default function App() {
   }
 
   return (
-    <div className="app-shell">
+    <>
       {!loading && screen === 'home' && (
         <Home
           items={items}
@@ -123,9 +126,33 @@ export default function App() {
 
       {screen === 'edit' && <Edit item={editingItem} onCancel={cancelEdit} onSave={handleSave} />}
 
-      {screen === 'stats' && <Stats items={items} onHome={() => setScreen('home')} onNew={newItem} />}
+      {screen === 'stats' && <Stats items={items} onHome={() => setScreen('home')} onNew={newItem} onSignOut={onSignOut} />}
 
       {toast && <Toast key={toast.key} message={toast.msg} />}
+    </>
+  )
+}
+
+/** Portão de autenticação: no modo Supabase, exige login antes do app. */
+export default function App() {
+  const { session, loading } = useSession()
+
+  // Modo local (sem chaves do Supabase): vai direto pro app.
+  if (!isSupabaseConfigured) {
+    return (
+      <div className="app-shell">
+        <WishlistApp />
+      </div>
+    )
+  }
+
+  if (loading) {
+    return <div className="app-shell" />
+  }
+
+  return (
+    <div className="app-shell">
+      {session ? <WishlistApp onSignOut={signOut} /> : <Login />}
     </div>
   )
 }
