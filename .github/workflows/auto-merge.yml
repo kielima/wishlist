@@ -1,0 +1,103 @@
+name: Auto Merge
+
+# Dispara quando o workflow "CI" termina. Usamos workflow_run (e não
+# pull_request) porque assim temos a conclusão real dos checks de CI antes
+# de decidir mergear.
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types:
+      - completed
+
+# actions: write é OBRIGATÓRIO para o step "Trigger downstream workflows"
+# (createWorkflowDispatch). Sem ele a chamada falha com HTTP 403.
+permissions:
+  contents: write
+  pull-requests: write
+  actions: write
+
+jobs:
+  auto-merge:
+    runs-on: ubuntu-latest
+    # Só age se o CI passou. PRs com CI falhando/cancelado são ignorados.
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    steps:
+      - name: Squash-merge eligible PR
+        id: merge
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const run = context.payload.workflow_run;
+
+            // O workflow_run carrega os PRs associados ao head do CI.
+            // Em forks isso pode vir vazio; nesse caso buscamos pelo head SHA.
+            let prs = run.pull_requests || [];
+            if (prs.length === 0) {
+              const { data } = await github.rest.repos.listPullRequestsAssociatedWithCommit({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                commit_sha: run.head_sha,
+              });
+              prs = data;
+            }
+
+            let merged = false;
+            for (const prRef of prs) {
+              const { data: pr } = await github.rest.pulls.get({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: prRef.number,
+              });
+
+              if (pr.state !== 'open') continue;
+              if (pr.draft) {
+                core.info(`PR #${pr.number} é draft — ignorado.`);
+                continue;
+              }
+              if (!pr.mergeable_state || ['dirty', 'blocked'].includes(pr.mergeable_state)) {
+                core.info(`PR #${pr.number} não está mergeável (${pr.mergeable_state}) — ignorado.`);
+                continue;
+              }
+
+              core.info(`Mergeando (squash) PR #${pr.number}...`);
+              await github.rest.pulls.merge({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: pr.number,
+                merge_method: 'squash',
+              });
+              merged = true;
+            }
+
+            core.setOutput('merged', String(merged));
+
+      # ------------------------------------------------------------------
+      # POR QUE ESTE STEP EXISTE — NÃO REMOVER:
+      #
+      # Pushes feitos pelo GITHUB_TOKEN (incluindo o merge via API acima)
+      # NÃO disparam outros workflows. É uma proteção anti-loop do GitHub.
+      # Consequência: o workflow "Deploy to GitHub Pages" (deploy.yml), que
+      # escuta `push: branches: [main]`, NUNCA rodaria após um auto-merge —
+      # silenciosamente, sem erro nem aviso.
+      #
+      # workflow_dispatch é a exceção documentada à regra: pode ser invocado
+      # pelo GITHUB_TOKEN. Por isso re-disparamos manualmente cada workflow
+      # de `push: main` aqui. Se você adicionar novos workflows que rodam em
+      # `push: main`, adicione `workflow_dispatch:` neles e inclua-os na lista
+      # `downstream` abaixo — caso contrário eles deixarão de rodar.
+      # ------------------------------------------------------------------
+      - name: Trigger downstream workflows
+        if: ${{ steps.merge.outputs.merged == 'true' }}
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const downstream = ['deploy.yml'];
+            for (const wf of downstream) {
+              core.info(`Disparando ${wf} em main...`);
+              await github.rest.actions.createWorkflowDispatch({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                workflow_id: wf,
+                ref: 'main',
+              });
+            }
