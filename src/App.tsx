@@ -1,72 +1,131 @@
-import { useEffect, useState } from 'react'
-import { repository } from './repository'
-import { PRIORITY_RANK } from './constants'
-import type { WishItem } from './types'
+import { useState } from 'react'
+import { useWishlist } from './useWishlist'
+import { fileToDataUrl } from './format'
+import type { Receipt, WishItem, WishItemInput } from './types'
+import Home from './screens/Home'
+import Detail from './screens/Detail'
+import Edit from './screens/Edit'
+import Stats from './screens/Stats'
+import Toast from './components/Toast'
 
-/**
- * PLACEHOLDER da Fase 1. Estrutura mínima funcional para validar a stack
- * (PWA + IndexedDB + repositório). Será substituída pela interface real
- * assim que o design do Claude Design for definido.
- */
+type Screen = 'home' | 'detail' | 'edit' | 'stats'
+type Filter = 'todos' | 'desejados' | 'concluidos'
+type Layout = 'editorial' | 'gallery'
+
 export default function App() {
-  const [items, setItems] = useState<WishItem[]>([])
-  const [name, setName] = useState('')
+  const { items, loading, create, update, remove } = useWishlist()
 
-  async function refresh() {
-    const all = await repository.list()
-    all.sort((a, b) => PRIORITY_RANK[a.priority] - PRIORITY_RANK[b.priority])
-    setItems(all)
+  const [screen, setScreen] = useState<Screen>('home')
+  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [editingItem, setEditingItem] = useState<WishItem | undefined>(undefined)
+  const [layout, setLayout] = useState<Layout>('editorial')
+  const [filter, setFilter] = useState<Filter>('todos')
+  const [toast, setToast] = useState<{ msg: string; key: number } | null>(null)
+
+  const current = items.find((i) => i.id === selectedId)
+
+  function flash(msg: string) {
+    setToast({ msg, key: Date.now() })
   }
 
-  useEffect(() => {
-    refresh()
-  }, [])
+  function openDetail(id: string) {
+    setSelectedId(id)
+    setScreen('detail')
+  }
 
-  async function addQuick(e: React.FormEvent) {
-    e.preventDefault()
-    if (!name.trim()) return
-    await repository.create({
-      name: name.trim(),
-      description: '',
-      link: '',
-      priceCents: null,
-      priority: 'could',
-      status: 'wanted',
-      categories: [],
-      photo: null,
-    })
-    setName('')
-    refresh()
+  function newItem() {
+    setEditingItem(undefined)
+    setScreen('edit')
+  }
+
+  function editCurrent() {
+    setEditingItem(current)
+    setScreen('edit')
+  }
+
+  function cancelEdit() {
+    setScreen(editingItem ? 'detail' : 'home')
+  }
+
+  async function handleSave(input: WishItemInput) {
+    if (editingItem) {
+      await update(editingItem.id, input)
+      setSelectedId(editingItem.id)
+    } else {
+      const created = await create(input)
+      setSelectedId(created.id)
+    }
+    setEditingItem(undefined)
+    setScreen('detail')
+    flash('Salvo')
+  }
+
+  async function toggleBought() {
+    if (!current) return
+    const next = current.status === 'wanted' ? 'bought' : 'wanted'
+    await update(current.id, { status: next })
+    flash(next === 'bought' ? 'Conquistado!' : 'De volta à lista')
+  }
+
+  async function deleteCurrent() {
+    if (!current) return
+    await remove(current.id)
+    setScreen('home')
+    flash('Removido')
+  }
+
+  async function attachReceipt(file: File) {
+    if (!current) return
+    const isImg = file.type.startsWith('image/')
+    const dataUrl = await fileToDataUrl(file)
+    const receipt: Receipt = {
+      name: file.name,
+      date: new Date().toLocaleDateString('pt-BR'),
+      kind: isImg ? 'image' : 'pdf',
+      dataUrl,
+    }
+    await update(current.id, { receipt })
+    flash('Nota fiscal arquivada')
+  }
+
+  async function removeReceipt() {
+    if (!current) return
+    await update(current.id, { receipt: null })
+    flash('Nota fiscal removida')
   }
 
   return (
-    <main className="app">
-      <h1>Wishlist</h1>
-      <p className="muted">
-        Fundação da Fase 1 — a interface final entra quando o design chegar.
-      </p>
-
-      <form onSubmit={addQuick} className="quick-add">
-        <input
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="Adicionar desejo rápido…"
-          aria-label="Nome do desejo"
+    <div className="app-shell">
+      {!loading && screen === 'home' && (
+        <Home
+          items={items}
+          filter={filter}
+          setFilter={setFilter}
+          layout={layout}
+          setLayout={setLayout}
+          onOpen={openDetail}
+          onNew={newItem}
+          onStats={() => setScreen('stats')}
         />
-        <button type="submit">Adicionar</button>
-      </form>
+      )}
 
-      <ul className="items">
-        {items.map((item) => (
-          <li key={item.id}>
-            <span>{item.name}</span>
-            <button onClick={() => repository.remove(item.id).then(refresh)}>
-              remover
-            </button>
-          </li>
-        ))}
-        {items.length === 0 && <li className="muted">Nenhum desejo ainda.</li>}
-      </ul>
-    </main>
+      {screen === 'detail' && current && (
+        <Detail
+          item={current}
+          onBack={() => setScreen('home')}
+          onEdit={editCurrent}
+          onDelete={deleteCurrent}
+          onToggleBought={toggleBought}
+          onAttachReceipt={attachReceipt}
+          onRemoveReceipt={removeReceipt}
+        />
+      )}
+
+      {screen === 'edit' && <Edit item={editingItem} onCancel={cancelEdit} onSave={handleSave} />}
+
+      {screen === 'stats' && <Stats items={items} onHome={() => setScreen('home')} onNew={newItem} />}
+
+      {toast && <Toast key={toast.key} message={toast.msg} />}
+    </div>
   )
 }

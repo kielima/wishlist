@@ -1,16 +1,30 @@
 import type { Priority, Status } from './types'
 
-/** Rótulos e ordem das prioridades MoSCoW (do mais para o menos urgente). */
-export const PRIORITIES: { value: Priority; label: string; rank: number }[] = [
-  { value: 'must', label: 'Must — preciso', rank: 0 },
-  { value: 'should', label: 'Should — deveria', rank: 1 },
-  { value: 'could', label: 'Could — poderia', rank: 2 },
-  { value: 'wont', label: "Won't — talvez não", rank: 3 },
+export interface PriorityMeta {
+  value: Priority
+  /** Rótulo curto ("Must"). */
+  label: string
+  /** Rótulo completo ("Must — preciso"). */
+  full: string
+  /** Ordem de urgência (0 = mais urgente). */
+  rank: number
+  /** Quantos dos 4 traços do medidor ficam preenchidos. */
+  ticks: number
+  /** Largura da barra de prioridade. */
+  pct: string
+}
+
+/** Prioridades MoSCoW (do mais para o menos urgente). */
+export const PRIORITIES: PriorityMeta[] = [
+  { value: 'must', label: 'Must', full: 'Must — preciso', rank: 0, ticks: 4, pct: '100%' },
+  { value: 'should', label: 'Should', full: 'Should — deveria', rank: 1, ticks: 3, pct: '75%' },
+  { value: 'could', label: 'Could', full: 'Could — poderia', rank: 2, ticks: 2, pct: '50%' },
+  { value: 'wont', label: "Won't", full: "Won't — talvez não", rank: 3, ticks: 1, pct: '25%' },
 ]
 
-export const PRIORITY_RANK: Record<Priority, number> = Object.fromEntries(
-  PRIORITIES.map((p) => [p.value, p.rank]),
-) as Record<Priority, number>
+export const PRIORITY_META: Record<Priority, PriorityMeta> = Object.fromEntries(
+  PRIORITIES.map((p) => [p.value, p]),
+) as Record<Priority, PriorityMeta>
 
 export const STATUSES: { value: Status; label: string }[] = [
   { value: 'wanted', label: 'Quero' },
@@ -19,10 +33,10 @@ export const STATUSES: { value: Status; label: string }[] = [
 
 /**
  * Categorias sugeridas — extraídas da lista de desejos original do usuário.
- * São apenas sugestões: o campo de categorias é livre.
+ * O campo é livre; estas são apenas as opções rápidas na tela de edição.
  */
-export const SUGGESTED_CATEGORIES = [
-  'Rotina & Cuidados Pessoais',
+export const CATEGORIES = [
+  'Cuidados Pessoais',
   'Saúde & Treino',
   'Gatos',
   'Roupa & Acessórios',

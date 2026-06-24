@@ -34,3 +34,8 @@ Lista_de_Desejos.md
 .env
 .env.local
 .env.*.local
+
+# Ferramentas/artefatos locais
+.claude/
+*.zip
+*.dc.html

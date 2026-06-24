@@ -1,76 +1,93 @@
-/* Estilos neutros e mínimos — placeholder até o design final. */
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Hanken+Grotesk:wght@400;500;600;700&display=swap');
+
 :root {
-  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-  color-scheme: light dark;
+  --font-display: 'Space Grotesk', system-ui, sans-serif;
+  --font-mono: 'Space Grotesk', ui-monospace, monospace;
+  --font-body: 'Hanken Grotesk', system-ui, sans-serif;
+  --ink: #0a0a0a;
+  --surface: #f4f4f4;
 }
 
 * {
   box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
 }
 
+html,
 body {
   margin: 0;
+  background: #e8e8e8;
 }
 
-.app {
-  max-width: 640px;
+#root {
+  font-family: var(--font-body);
+}
+
+/* Shell: ocupa a tela toda; no desktop vira um "telefone" centralizado. */
+.app-shell {
+  width: 100%;
+  max-width: 440px;
+  min-height: 100vh;
+  min-height: 100dvh;
   margin: 0 auto;
-  padding: 1.5rem 1rem env(safe-area-inset-bottom);
-}
-
-h1 {
-  margin: 0 0 0.25rem;
-}
-
-.muted {
-  opacity: 0.6;
-}
-
-.quick-add {
-  display: flex;
-  gap: 0.5rem;
-  margin: 1rem 0;
-}
-
-.quick-add input {
-  flex: 1;
-  padding: 0.6rem 0.75rem;
-  font-size: 1rem;
-  border: 1px solid color-mix(in srgb, currentColor 25%, transparent);
-  border-radius: 8px;
-  background: transparent;
-  color: inherit;
-}
-
-.quick-add button {
-  padding: 0.6rem 1rem;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-}
-
-.items {
-  list-style: none;
-  padding: 0;
-  margin: 0;
+  background: #ffffff;
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  position: relative;
+  overflow: hidden;
 }
 
-.items li {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0.75rem;
-  border: 1px solid color-mix(in srgb, currentColor 15%, transparent);
-  border-radius: 8px;
+/* Esconde a scrollbar das áreas roláveis (igual ao mockup). */
+[data-scroll] {
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+[data-scroll]::-webkit-scrollbar {
+  display: none;
 }
 
-.items button {
-  background: none;
-  border: none;
-  cursor: pointer;
-  opacity: 0.6;
-  font-size: 0.85rem;
+input,
+textarea,
+button {
+  font-family: inherit;
+}
+
+/* Feedback de toque (substitui o style-active do mockup). */
+.press {
+  transition: transform 0.12s ease;
+}
+.press:active {
+  transform: scale(0.97);
+}
+.press-lg:active {
+  transform: scale(0.9);
+}
+.press-md:active {
+  transform: scale(0.94);
+}
+.press-row {
+  transition: transform 0.12s ease, background 0.15s;
+}
+.press-row:active {
+  transform: scale(0.99);
+  background: #fafafa;
+}
+
+@keyframes screenIn {
+  from { opacity: 0; transform: translateX(14px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+@keyframes popIn {
+  from { opacity: 0; transform: scale(0.9); }
+  to { opacity: 1; transform: scale(1); }
+}
+@keyframes rowIn {
+  from { opacity: 0; transform: translateY(9px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes toastIn {
+  0% { opacity: 0; transform: translate(-50%, 16px) scale(0.96); }
+  12% { opacity: 1; transform: translate(-50%, 0) scale(1); }
+  88% { opacity: 1; transform: translate(-50%, 0) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, 8px) scale(0.98); }
 }
