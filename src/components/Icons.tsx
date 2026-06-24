@@ -79,10 +79,27 @@ export function DocIcon({ w = 20, h = 24, color = '#9a9a9a' }: { w?: number; h?:
   )
 }
 
-export function CloseIcon() {
+export function CloseIcon({ size = 13, color = '#bdbdbd' }: { size?: number; color?: string }) {
   return (
-    <svg width="13" height="13" viewBox="0 0 13 13">
-      <path d="M3 3l7 7M10 3l-7 7" stroke="#bdbdbd" strokeWidth="1.6" strokeLinecap="round" />
+    <svg width={size} height={size} viewBox="0 0 13 13">
+      <path d="M3 3l7 7M10 3l-7 7" stroke={color} strokeWidth="1.6" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+export function SearchIcon({ color = '#9a9a9a' }: { color?: string }) {
+  return (
+    <svg width="15" height="15" viewBox="0 0 15 15">
+      <circle cx="6.5" cy="6.5" r="4.5" stroke={color} strokeWidth="1.5" fill="none" />
+      <path d="M10 10l3 3" stroke={color} strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+export function PlusSmall({ size = 15, color = '#fff' }: { size?: number; color?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 15 15">
+      <path d="M7.5 3v9M3 7.5h9" stroke={color} strokeWidth="2" strokeLinecap="round" />
     </svg>
   )
 }

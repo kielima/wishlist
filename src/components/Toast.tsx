@@ -7,8 +7,8 @@ export default function Toast({ message }: { message: string }) {
       style={{
         position: 'absolute',
         left: '50%',
-        bottom: 108,
-        zIndex: 100,
+        bottom: 32,
+        zIndex: 80,
         display: 'flex',
         alignItems: 'center',
         gap: 8,
