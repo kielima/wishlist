@@ -118,7 +118,10 @@ export function CompactList({ items, onOpen }: { items: WishItem[]; onOpen: (id:
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
               <span style={{ fontFamily: display, fontSize: 14, fontWeight: 600, color: bought ? '#bdbdbd' : '#0a0a0a' }}>{formatPrice(toBRLCents(it.priceCents, it.currency, rates))}</span>
-              <PriorityTicks priority={it.priority} w={5} h={10} gap={2.5} />
+              <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                <span style={{ fontFamily: mono, fontSize: 8.5, letterSpacing: '.06em', textTransform: 'uppercase', color: '#bdbdbd' }}>{PRIORITY_META[it.priority].label}</span>
+                <PriorityTicks priority={it.priority} w={5} h={10} gap={2.5} />
+              </div>
             </div>
           </div>
         )
