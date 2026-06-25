@@ -67,9 +67,9 @@ export default function Login() {
               inputMode="numeric"
               autoComplete="one-time-code"
               value={code}
-              onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-              placeholder="000000"
-              style={{ width: '100%', boxSizing: 'border-box', border: 'none', borderBottom: '1.5px solid #ececec', background: 'none', padding: '8px 0', fontFamily: mono, fontSize: 26, fontWeight: 600, letterSpacing: '.3em', color: '#0a0a0a', outline: 'none' }}
+              onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 10))}
+              placeholder="00000000"
+              style={{ width: '100%', boxSizing: 'border-box', border: 'none', borderBottom: '1.5px solid #ececec', background: 'none', padding: '8px 0', fontFamily: mono, fontSize: 24, fontWeight: 600, letterSpacing: '.2em', color: '#0a0a0a', outline: 'none' }}
             />
             {error && <div style={{ color: '#e2553d', fontSize: 13, marginTop: 10 }}>{error}</div>}
             <button
