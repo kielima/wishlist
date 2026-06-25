@@ -36,6 +36,17 @@ export async function signInWithEmail(email: string): Promise<void> {
   if (error) throw error
 }
 
+/**
+ * Verifica o código de 6 dígitos enviado por e-mail e cria a sessão no contexto
+ * atual (essencial para PWA: o link mágico abre no navegador, mas o código pode
+ * ser digitado dentro do próprio app instalado).
+ */
+export async function verifyOtpCode(email: string, token: string): Promise<void> {
+  if (!supabase) throw new Error('Supabase não configurado')
+  const { error } = await supabase.auth.verifyOtp({ email, token, type: 'email' })
+  if (error) throw error
+}
+
 export async function signOut(): Promise<void> {
   if (!supabase) return
   await supabase.auth.signOut()
