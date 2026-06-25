@@ -157,7 +157,7 @@ function WishlistApp({ onSignOut }: { onSignOut?: () => void }) {
 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, position: 'relative' }}>
         {isNarrow ? (
-          <TopBar items={items} filter={filter} setFilter={setFilter} onNew={newItem} onOpenPanel={() => setPanelOpen(true)} />
+          <TopBar items={items} filter={filter} setFilter={setFilter} layout={layout} setLayout={setLayout} onNew={newItem} onOpenPanel={() => setPanelOpen(true)} />
         ) : (
           <Header
             heading={heading}
