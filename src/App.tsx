@@ -10,6 +10,7 @@ import type { Receipt, WishItem, WishItemInput } from './types'
 import Sidebar from './components/Sidebar'
 import Header from './components/Header'
 import TopBar from './components/TopBar'
+import BottomBar from './components/BottomBar'
 import { CompactList, GalleryGrid, ItemTable } from './components/ItemViews'
 import ResumoPanel from './components/ResumoPanel'
 import DetailModal from './components/DetailModal'
@@ -157,7 +158,7 @@ function WishlistApp({ onSignOut }: { onSignOut?: () => void }) {
 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, position: 'relative' }}>
         {isNarrow ? (
-          <TopBar items={items} filter={filter} setFilter={setFilter} layout={layout} setLayout={setLayout} onNew={newItem} onOpenPanel={() => setPanelOpen(true)} />
+          <TopBar items={items} filter={filter} setFilter={setFilter} layout={layout} setLayout={setLayout} totalWantedCents={wantedTotal} />
         ) : (
           <Header
             heading={heading}
@@ -172,7 +173,7 @@ function WishlistApp({ onSignOut }: { onSignOut?: () => void }) {
           />
         )}
 
-        <div data-scroll style={{ flex: 1, overflow: 'auto', transition: 'padding-right .32s cubic-bezier(.3,.7,.2,1)', paddingRight: panelInline ? 362 : 0 }}>
+        <div id="main-scroll" data-scroll style={{ flex: 1, overflow: 'auto', transition: 'padding-right .32s cubic-bezier(.3,.7,.2,1)', paddingRight: panelInline ? 362 : 0, paddingBottom: isNarrow ? 88 : 0 }}>
           {visible.length === 0 ? (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 7, padding: '90px 24px' }}>
               <span style={{ fontFamily: 'var(--font-display)', fontSize: 18, fontWeight: 600 }}>Nada por aqui</span>
@@ -192,6 +193,14 @@ function WishlistApp({ onSignOut }: { onSignOut?: () => void }) {
         <div onClick={() => setPanelOpen(false)} style={{ position: 'absolute', inset: 0, background: 'rgba(10,10,10,.28)', zIndex: 40, animation: 'fadeIn .25s ease' }} />
       )}
       <ResumoPanel items={items} open={panelOpen} inline={panelInline} isNarrow={isNarrow} onClose={() => setPanelOpen(false)} onSignOut={onSignOut} />
+
+      {isNarrow && (
+        <BottomBar
+          onHome={() => document.getElementById('main-scroll')?.scrollTo({ top: 0, behavior: 'smooth' })}
+          onNew={newItem}
+          onOpenPanel={() => setPanelOpen(true)}
+        />
+      )}
 
       {modal === 'detail' && current && (
         <DetailModal item={current} vp={vp} onClose={closeModal} onEdit={editCurrent} onDelete={deleteCurrent} onToggleBought={toggleBought} onAttachReceipt={attachReceipt} onRemoveReceipt={removeReceipt} />
