@@ -3,14 +3,15 @@ import { primaryCategory } from '../format'
 import type { WishItem } from '../types'
 import { PlusSmall } from './Icons'
 
-type Filter = 'todos' | 'desejados' | 'concluidos'
+type Filter = 'todos' | 'desejados' | 'concluidos' | 'favoritos'
 
 interface Props {
   items: WishItem[]
   filter: Filter
   setFilter: (f: Filter) => void
-  category: string | null
-  setCategory: (c: string | null) => void
+  categories: string[]
+  toggleCategory: (c: string) => void
+  clearCategories: () => void
   onNew: () => void
 }
 
@@ -26,14 +27,16 @@ const navLabel: React.CSSProperties = {
   padding: '0 8px 8px',
 }
 
-export default function Sidebar({ items, filter, setFilter, category, setCategory, onNew }: Props) {
+export default function Sidebar({ items, filter, setFilter, categories, toggleCategory, clearCategories, onNew }: Props) {
   const wanted = items.filter((i) => i.status === 'wanted').length
   const bought = items.filter((i) => i.status === 'bought').length
+  const favorites = items.filter((i) => i.favorite).length
 
   const tabs: { key: Filter; label: string; count: number }[] = [
     { key: 'todos', label: 'Todos', count: items.length },
     { key: 'desejados', label: 'Desejados', count: wanted },
     { key: 'concluidos', label: 'Concluídos', count: bought },
+    { key: 'favoritos', label: 'Favoritos', count: favorites },
   ]
 
   const counts: Record<string, number> = {}
@@ -79,11 +82,11 @@ export default function Sidebar({ items, filter, setFilter, category, setCategor
 
         <div style={{ ...navLabel, padding: '18px 8px 8px' }}>Categorias</div>
         {catNav.map((c) => {
-          const active = category === c.key
+          const active = c.key === null ? categories.length === 0 : categories.includes(c.key)
           return (
             <button
               key={c.name}
-              onClick={() => setCategory(c.key)}
+              onClick={() => (c.key === null ? clearCategories() : toggleCategory(c.key))}
               style={{ width: '100%', background: active ? '#f4f4f4' : 'transparent', border: 'none', cursor: 'pointer', borderRadius: 10, padding: '9px 12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontFamily: 'var(--font-body)', fontSize: 13.5, fontWeight: active ? 700 : 600, color: active ? '#0a0a0a' : '#6b6b6b', marginBottom: 1 }}
             >
               <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.name}</span>

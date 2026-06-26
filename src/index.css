@@ -83,6 +83,9 @@ textarea::placeholder {
 .soft-hover:hover {
   background: #f4f4f4;
 }
+.fav-hover:hover {
+  background: #f0f0f0;
+}
 
 @keyframes rowIn {
   from { opacity: 0; transform: translateY(8px); }

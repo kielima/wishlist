@@ -1,4 +1,3 @@
-import { PRIORITY_META } from './constants'
 import type { WishItem } from './types'
 
 /** Formata centavos como "R$ 1.299" (sem casas decimais, padrão pt-BR). */
@@ -15,16 +14,6 @@ export function initialOf(name: string): string {
 /** Categoria principal (a primeira) ou "Outros". */
 export function primaryCategory(item: WishItem): string {
   return item.categories[0] || 'Outros'
-}
-
-/** Ordena por status (desejados antes de comprados) e depois por prioridade. */
-export function sortItems(items: WishItem[]): WishItem[] {
-  return [...items].sort((a, b) => {
-    if ((a.status === 'bought') !== (b.status === 'bought')) {
-      return a.status === 'bought' ? 1 : -1
-    }
-    return PRIORITY_META[a.priority].rank - PRIORITY_META[b.priority].rank
-  })
 }
 
 /** Domínio limpo do link (só o host) para exibição. */

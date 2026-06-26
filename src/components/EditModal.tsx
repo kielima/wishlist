@@ -62,6 +62,7 @@ export default function EditModal({ item, prefill, vp, onClose, onSave }: Props)
       currency,
       priority,
       status,
+      favorite: item?.favorite ?? false,
       categories,
       photo,
       receipt: item?.receipt ?? null,

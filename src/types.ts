@@ -35,6 +35,8 @@ export interface WishItem {
   currency: Currency
   priority: Priority
   status: Status
+  /** Marcado como favorito (coração) — exibido e filtrável na UI. */
+  favorite: boolean
   /** Categorias/tags. A primeira é tratada como categoria principal na UI. */
   categories: string[]
   /** Foto do item como data URL (base64). null = sem foto. */

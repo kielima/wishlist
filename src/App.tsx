@@ -1,28 +1,31 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useWishlist } from './useWishlist'
 import { useViewport } from './useViewport'
-import { fileToDataUrl, primaryCategory, sortItems } from './format'
+import { fileToDataUrl, primaryCategory } from './format'
+import { PRICE_MAX, PRICE_MIN, PRIORITY_META, type SortBy } from './constants'
 import { RatesContext, toBRLCents, useLiveRates } from './currency'
 import { resolveClip, takePendingClip, type ClipPrefill } from './clip'
 import { isSupabaseConfigured } from './supabase'
 import { signOut, useSession } from './auth'
-import type { Receipt, WishItem, WishItemInput } from './types'
+import type { Priority, Receipt, WishItem, WishItemInput } from './types'
 import Sidebar from './components/Sidebar'
 import Header from './components/Header'
 import TopBar from './components/TopBar'
 import BottomBar from './components/BottomBar'
 import { CompactList, GalleryGrid, ItemTable } from './components/ItemViews'
 import ResumoPanel from './components/ResumoPanel'
+import FilterDrawer from './components/FilterDrawer'
+import ActiveChips, { type Chip } from './components/ActiveChips'
 import DetailModal from './components/DetailModal'
 import EditModal from './components/EditModal'
 import Login from './screens/Login'
 import Toast from './components/Toast'
 
-type Filter = 'todos' | 'desejados' | 'concluidos'
+type Filter = 'todos' | 'desejados' | 'concluidos' | 'favoritos'
 type Layout = 'editorial' | 'gallery'
 type Modal = 'detail' | 'edit' | null
 
-const HEADINGS: Record<Filter, string> = { todos: 'Tudo', desejados: 'Desejados', concluidos: 'Concluídos' }
+const HEADINGS: Record<Filter, string> = { todos: 'Tudo', desejados: 'Desejados', concluidos: 'Concluídos', favoritos: 'Favoritos' }
 
 function WishlistApp({ onSignOut }: { onSignOut?: () => void }) {
   const { items, create, update, remove } = useWishlist()
@@ -31,10 +34,15 @@ function WishlistApp({ onSignOut }: { onSignOut?: () => void }) {
   const { isNarrow, hasSidebar, isWide } = vp
 
   const [filter, setFilter] = useState<Filter>('todos')
-  const [category, setCategory] = useState<string | null>(null)
+  const [categories, setCategories] = useState<string[]>([])
+  const [sortBy, setSortBy] = useState<SortBy>('priority')
+  const [priorities, setPriorities] = useState<Priority[]>([])
+  const [priceMin, setPriceMin] = useState(PRICE_MIN)
+  const [priceMax, setPriceMax] = useState(PRICE_MAX)
   const [layout, setLayout] = useState<Layout>('editorial')
   const [query, setQuery] = useState('')
   const [panelOpen, setPanelOpen] = useState(false)
+  const [filterOpen, setFilterOpen] = useState(false)
   const [modal, setModal] = useState<Modal>(null)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [editingItem, setEditingItem] = useState<WishItem | undefined>(undefined)
@@ -47,21 +55,41 @@ function WishlistApp({ onSignOut }: { onSignOut?: () => void }) {
     .filter((i) => i.status === 'wanted')
     .reduce((s, i) => s + toBRLCents(i.priceCents, i.currency, rates), 0)
 
+  const priceActive = priceMin > PRICE_MIN || priceMax < PRICE_MAX
+  const filterCount = priorities.length + categories.length + (priceActive ? 1 : 0)
+
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase()
+    const brlReais = (i: WishItem) => toBRLCents(i.priceCents, i.currency, rates) / 100
     const statusFn =
       filter === 'desejados'
         ? (i: WishItem) => i.status === 'wanted'
         : filter === 'concluidos'
           ? (i: WishItem) => i.status === 'bought'
-          : () => true
-    return sortItems(items).filter(
-      (i) =>
+          : filter === 'favoritos'
+            ? (i: WishItem) => !!i.favorite
+            : () => true
+    const upper = priceMax >= PRICE_MAX ? Infinity : priceMax
+    const filtered = items.filter((i) => {
+      const reais = brlReais(i)
+      return (
         statusFn(i) &&
-        (!category || primaryCategory(i) === category) &&
-        (!q || i.name.toLowerCase().includes(q) || primaryCategory(i).toLowerCase().includes(q)),
-    )
-  }, [items, filter, category, query])
+        (categories.length === 0 || categories.includes(primaryCategory(i))) &&
+        (priorities.length === 0 || priorities.includes(i.priority)) &&
+        reais >= priceMin &&
+        reais <= upper &&
+        (!q || i.name.toLowerCase().includes(q) || primaryCategory(i).toLowerCase().includes(q))
+      )
+    })
+    return filtered.sort((a, b) => {
+      if (sortBy === 'priceDesc') return brlReais(b) - brlReais(a)
+      if (sortBy === 'priceAsc') return brlReais(a) - brlReais(b)
+      if (sortBy === 'alpha') return a.name.localeCompare(b.name, 'pt-BR')
+      // 'priority': desejados antes de comprados, depois por urgência, depois nome
+      if ((a.status === 'bought') !== (b.status === 'bought')) return a.status === 'bought' ? 1 : -1
+      return PRIORITY_META[a.priority].rank - PRIORITY_META[b.priority].rank || a.name.localeCompare(b.name, 'pt-BR')
+    })
+  }, [items, filter, categories, priorities, priceMin, priceMax, query, sortBy, rates])
 
   function flash(msg: string) {
     setToast({ msg, key: Date.now() })
@@ -99,7 +127,34 @@ function WishlistApp({ onSignOut }: { onSignOut?: () => void }) {
     setClipPrefill(undefined)
   }
   function togglePanel() {
+    setFilterOpen(false)
     setPanelOpen((v) => !v)
+  }
+  function openFilter() {
+    setPanelOpen(false)
+    setFilterOpen(true)
+  }
+  function togglePriority(p: Priority) {
+    setPriorities((prev) => (prev.includes(p) ? prev.filter((x) => x !== p) : [...prev, p]))
+  }
+  function toggleCategory(c: string) {
+    setCategories((prev) => (prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c]))
+  }
+  function resetPrice() {
+    setPriceMin(PRICE_MIN)
+    setPriceMax(PRICE_MAX)
+  }
+  function clearFilters() {
+    setPriorities([])
+    setCategories([])
+    resetPrice()
+  }
+
+  async function toggleFav(id: string) {
+    const it = items.find((i) => i.id === id)
+    if (!it) return
+    await update(id, { favorite: !it.favorite })
+    flash(it.favorite ? 'Removido dos favoritos' : 'Adicionado aos favoritos')
   }
 
   async function handleSave(input: WishItemInput) {
@@ -147,18 +202,26 @@ function WishlistApp({ onSignOut }: { onSignOut?: () => void }) {
 
   const panelInline = isWide && panelOpen
   const showBackdrop = panelOpen && !panelInline
-  const heading = category ?? HEADINGS[filter]
+  const heading = categories.length === 1 ? categories[0] : HEADINGS[filter]
+
+  const priceLabel =
+    'R$ ' + priceMin.toLocaleString('pt-BR') + ' — R$ ' + priceMax.toLocaleString('pt-BR') + (priceMax >= PRICE_MAX ? '+' : '')
+  const activeChips: Chip[] = [
+    ...priorities.map((p) => ({ key: `pri:${p}`, label: PRIORITY_META[p].label, onRemove: () => togglePriority(p) })),
+    ...categories.map((c) => ({ key: `cat:${c}`, label: c, onRemove: () => toggleCategory(c) })),
+    ...(priceActive ? [{ key: 'price', label: priceLabel, onRemove: resetPrice }] : []),
+  ]
 
   return (
     <RatesContext.Provider value={rates}>
     <div className="wl-root">
       {hasSidebar && (
-        <Sidebar items={items} filter={filter} setFilter={setFilter} category={category} setCategory={setCategory} onNew={newItem} />
+        <Sidebar items={items} filter={filter} setFilter={setFilter} categories={categories} toggleCategory={toggleCategory} clearCategories={() => setCategories([])} onNew={newItem} />
       )}
 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, position: 'relative' }}>
         {isNarrow ? (
-          <TopBar items={items} filter={filter} setFilter={setFilter} layout={layout} setLayout={setLayout} totalWantedCents={wantedTotal} />
+          <TopBar items={items} filter={filter} setFilter={setFilter} layout={layout} setLayout={setLayout} totalWantedCents={wantedTotal} filterCount={filterCount} onOpenFilter={openFilter} />
         ) : (
           <Header
             heading={heading}
@@ -170,8 +233,13 @@ function WishlistApp({ onSignOut }: { onSignOut?: () => void }) {
             setLayout={setLayout}
             panelOpen={panelOpen}
             onTogglePanel={togglePanel}
+            filterOpen={filterOpen}
+            filterCount={filterCount}
+            onOpenFilter={openFilter}
           />
         )}
+
+        <ActiveChips chips={activeChips} onClearAll={clearFilters} />
 
         <div id="main-scroll" data-scroll style={{ flex: 1, overflow: 'auto', transition: 'padding-right .32s cubic-bezier(.3,.7,.2,1)', paddingRight: panelInline ? 362 : 0, paddingBottom: isNarrow ? 88 : 0 }}>
           {visible.length === 0 ? (
@@ -180,11 +248,11 @@ function WishlistApp({ onSignOut }: { onSignOut?: () => void }) {
               <span style={{ fontSize: 14, color: '#9a9a9a' }}>Ajuste os filtros ou adicione um novo desejo</span>
             </div>
           ) : layout === 'gallery' ? (
-            <GalleryGrid items={visible} isNarrow={isNarrow} onOpen={openDetail} />
+            <GalleryGrid items={visible} isNarrow={isNarrow} onOpen={openDetail} onToggleFav={toggleFav} />
           ) : hasSidebar ? (
-            <ItemTable items={visible} width={vp.width} onOpen={openDetail} />
+            <ItemTable items={visible} width={vp.width} onOpen={openDetail} onToggleFav={toggleFav} />
           ) : (
-            <CompactList items={visible} onOpen={openDetail} />
+            <CompactList items={visible} onOpen={openDetail} onToggleFav={toggleFav} />
           )}
         </div>
       </div>
@@ -193,6 +261,27 @@ function WishlistApp({ onSignOut }: { onSignOut?: () => void }) {
         <div onClick={() => setPanelOpen(false)} style={{ position: 'absolute', inset: 0, background: 'rgba(10,10,10,.28)', zIndex: 40, animation: 'fadeIn .25s ease' }} />
       )}
       <ResumoPanel items={items} open={panelOpen} inline={panelInline} isNarrow={isNarrow} onClose={() => setPanelOpen(false)} onSignOut={onSignOut} />
+
+      {filterOpen && (
+        <div onClick={() => setFilterOpen(false)} style={{ position: 'absolute', inset: 0, background: 'rgba(10,10,10,.28)', zIndex: 42, animation: 'fadeIn .25s ease' }} />
+      )}
+      <FilterDrawer
+        open={filterOpen}
+        isNarrow={isNarrow}
+        onClose={() => setFilterOpen(false)}
+        sortBy={sortBy}
+        setSortBy={setSortBy}
+        priorities={priorities}
+        togglePriority={togglePriority}
+        priceMin={priceMin}
+        priceMax={priceMax}
+        setPriceMin={setPriceMin}
+        setPriceMax={setPriceMax}
+        selectedCats={categories}
+        toggleCat={toggleCategory}
+        onClear={clearFilters}
+        resultCount={visible.length}
+      />
 
       {isNarrow && (
         <BottomBar
@@ -203,7 +292,7 @@ function WishlistApp({ onSignOut }: { onSignOut?: () => void }) {
       )}
 
       {modal === 'detail' && current && (
-        <DetailModal item={current} vp={vp} onClose={closeModal} onEdit={editCurrent} onDelete={deleteCurrent} onToggleBought={toggleBought} onAttachReceipt={attachReceipt} onRemoveReceipt={removeReceipt} />
+        <DetailModal item={current} vp={vp} onClose={closeModal} onEdit={editCurrent} onDelete={deleteCurrent} onToggleBought={toggleBought} onToggleFav={() => toggleFav(current.id)} onAttachReceipt={attachReceipt} onRemoveReceipt={removeReceipt} />
       )}
       {modal === 'edit' && <EditModal item={editingItem} prefill={clipPrefill} vp={vp} onClose={closeModal} onSave={handleSave} />}
 
