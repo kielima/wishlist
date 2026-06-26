@@ -3,7 +3,7 @@ import { formatPrice, initialOf, linkDomain, linkHref, primaryCategory } from '.
 import { formatMoney, toBRLCents, useRates } from '../currency'
 import type { Viewport } from '../useViewport'
 import type { WishItem } from '../types'
-import { CheckIcon, CloseIcon, DocIcon, ExternalIcon, TrashIcon } from './Icons'
+import { CheckIcon, CloseIcon, DocIcon, ExternalIcon, HeartIcon, TrashIcon } from './Icons'
 
 interface Props {
   item: WishItem
@@ -12,6 +12,7 @@ interface Props {
   onEdit: () => void
   onDelete: () => void
   onToggleBought: () => void
+  onToggleFav: () => void
   onAttachReceipt: (file: File) => void
   onRemoveReceipt: () => void
 }
@@ -20,7 +21,7 @@ const display = 'var(--font-display)'
 const mono = 'var(--font-mono)'
 const label: React.CSSProperties = { fontFamily: mono, fontSize: 9.5, letterSpacing: '.12em', color: '#a3a3a3', textTransform: 'uppercase' }
 
-export default function DetailModal({ item, vp, onClose, onEdit, onDelete, onToggleBought, onAttachReceipt, onRemoveReceipt }: Props) {
+export default function DetailModal({ item, vp, onClose, onEdit, onDelete, onToggleBought, onToggleFav, onAttachReceipt, onRemoveReceipt }: Props) {
   const { isNarrow, width } = vp
   const rates = useRates()
   const bought = item.status === 'bought'
@@ -55,6 +56,9 @@ export default function DetailModal({ item, vp, onClose, onEdit, onDelete, onTog
         {/* info */}
         <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8, padding: '16px 18px 0' }}>
+            <button onClick={onToggleFav} className="press" style={{ marginRight: 'auto', background: '#f4f4f4', border: 'none', cursor: 'pointer', width: 34, height: 34, borderRadius: 9, display: 'flex', alignItems: 'center', justifyContent: 'center' }} aria-label={item.favorite ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}>
+              <HeartIcon size={17} filled={!!item.favorite} />
+            </button>
             <button onClick={onEdit} className="soft-hover" style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: 14, fontWeight: 600, color: '#0a0a0a', padding: '7px 11px', borderRadius: 9 }}>Editar</button>
             <button onClick={onClose} style={{ background: '#f4f4f4', border: 'none', cursor: 'pointer', width: 32, height: 32, borderRadius: 9, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <CloseIcon size={12} color="#6b6b6b" />

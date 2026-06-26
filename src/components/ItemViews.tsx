@@ -2,11 +2,28 @@ import { PRIORITY_META } from '../constants'
 import { formatPrice, initialOf, primaryCategory } from '../format'
 import { toBRLCents, useRates } from '../currency'
 import type { WishItem } from '../types'
-import { CheckIcon } from './Icons'
+import { CheckIcon, HeartIcon } from './Icons'
 import PriorityTicks from './PriorityTicks'
 
 const display = 'var(--font-display)'
 const mono = 'var(--font-mono)'
+
+/** Botão de favorito (coração) reutilizado nas listas. Não abre o detalhe. */
+function FavButton({ item, onToggle, size = 30, heart = 17, hover = true }: { item: WishItem; onToggle: (id: string) => void; size?: number; heart?: number; hover?: boolean }) {
+  return (
+    <button
+      onClick={(e) => {
+        e.stopPropagation()
+        onToggle(item.id)
+      }}
+      aria-label={item.favorite ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}
+      className={hover ? 'press fav-hover' : 'press'}
+      style={{ flexShrink: 0, background: 'none', border: 'none', cursor: 'pointer', width: size, height: size, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+    >
+      <HeartIcon size={heart} filled={!!item.favorite} />
+    </button>
+  )
+}
 
 function Thumb({ item, size, font, radius }: { item: WishItem; size: number; font: number; radius: number }) {
   const bought = item.status === 'bought'
@@ -37,7 +54,7 @@ function nf(item: WishItem) {
 }
 
 /** Tabela densa (desktop, modo Lista). */
-export function ItemTable({ items, width, onOpen }: { items: WishItem[]; width: number; onOpen: (id: string) => void }) {
+export function ItemTable({ items, width, onOpen, onToggleFav }: { items: WishItem[]; width: number; onOpen: (id: string) => void; onToggleFav: (id: string) => void }) {
   const rates = useRates()
   const colTemplate =
     width < 980
@@ -80,7 +97,10 @@ export function ItemTable({ items, width, onOpen }: { items: WishItem[]; width: 
               <span style={{ fontFamily: mono, fontSize: 9, letterSpacing: '.05em', color: '#bdbdbd', textTransform: 'uppercase', width: 42 }}>{PRIORITY_META[it.priority].label}</span>
               <PriorityTicks priority={it.priority} w={6} h={12} />
             </div>
-            <div style={{ fontFamily: display, fontSize: 14.5, fontWeight: 600, color: bought ? '#bdbdbd' : '#0a0a0a', textAlign: 'right' }}>{formatPrice(toBRLCents(it.priceCents, it.currency, rates))}</div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8 }}>
+              <span style={{ fontFamily: display, fontSize: 14.5, fontWeight: 600, color: bought ? '#bdbdbd' : '#0a0a0a' }}>{formatPrice(toBRLCents(it.priceCents, it.currency, rates))}</span>
+              <FavButton item={it} onToggle={onToggleFav} />
+            </div>
           </div>
         )
       })}
@@ -89,7 +109,7 @@ export function ItemTable({ items, width, onOpen }: { items: WishItem[]; width: 
 }
 
 /** Lista compacta (mobile, modo Lista). */
-export function CompactList({ items, onOpen }: { items: WishItem[]; onOpen: (id: string) => void }) {
+export function CompactList({ items, onOpen, onToggleFav }: { items: WishItem[]; onOpen: (id: string) => void; onToggleFav: (id: string) => void }) {
   const rates = useRates()
   return (
     <div style={{ padding: '6px 0 32px' }}>
@@ -123,6 +143,7 @@ export function CompactList({ items, onOpen }: { items: WishItem[]; onOpen: (id:
                 <PriorityTicks priority={it.priority} w={5} h={10} gap={2.5} />
               </div>
             </div>
+            <FavButton item={it} onToggle={onToggleFav} size={32} heart={18} hover={false} />
           </div>
         )
       })}
@@ -131,7 +152,7 @@ export function CompactList({ items, onOpen }: { items: WishItem[]; onOpen: (id:
 }
 
 /** Grade de galeria (qualquer largura). */
-export function GalleryGrid({ items, isNarrow, onOpen }: { items: WishItem[]; isNarrow: boolean; onOpen: (id: string) => void }) {
+export function GalleryGrid({ items, isNarrow, onOpen, onToggleFav }: { items: WishItem[]; isNarrow: boolean; onOpen: (id: string) => void; onToggleFav: (id: string) => void }) {
   const rates = useRates()
   return (
     <div style={{ display: 'grid', gridTemplateColumns: `repeat(auto-fill, minmax(${isNarrow ? '150px' : '190px'}, 1fr))`, gap: 20, padding: '22px 28px 40px' }}>
@@ -146,6 +167,14 @@ export function GalleryGrid({ items, isNarrow, onOpen }: { items: WishItem[]; is
                 <span style={{ fontFamily: display, fontSize: 52, fontWeight: 600, color: '#dadada', opacity: bought ? 0.4 : 1 }}>{initialOf(it.name)}</span>
               )}
               <span style={{ position: 'absolute', left: 12, bottom: 11, fontFamily: mono, fontSize: 8, letterSpacing: '.05em', color: '#b0b0b0', textTransform: 'uppercase' }}>{primaryCategory(it)}</span>
+              <button
+                onClick={(e) => { e.stopPropagation(); onToggleFav(it.id) }}
+                aria-label={it.favorite ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}
+                className="press"
+                style={{ position: 'absolute', top: 11, left: 11, width: 30, height: 30, borderRadius: '50%', background: 'rgba(255,255,255,.92)', border: 'none', cursor: 'pointer', boxShadow: '0 1px 5px rgba(0,0,0,.14)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2 }}
+              >
+                <HeartIcon size={16} filled={!!it.favorite} />
+              </button>
               {bought && (
                 <div style={{ position: 'absolute', top: 11, right: 11, display: 'flex', alignItems: 'center', gap: 5, background: '#0a0a0a', borderRadius: 999, padding: '4px 9px 4px 7px' }}>
                   <CheckIcon size={10} stroke={1.8} />

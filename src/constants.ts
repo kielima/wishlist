@@ -31,6 +31,21 @@ export const STATUSES: { value: Status; label: string }[] = [
   { value: 'bought', label: 'Comprado' },
 ]
 
+/** Critérios de ordenação da lista (drawer de Filtros). */
+export type SortBy = 'alpha' | 'priceDesc' | 'priceAsc' | 'priority'
+
+export const SORT_OPTIONS: { value: SortBy; label: string }[] = [
+  { value: 'alpha', label: 'Alfabética' },
+  { value: 'priceDesc', label: 'Maior valor' },
+  { value: 'priceAsc', label: 'Menor valor' },
+  { value: 'priority', label: 'Prioridade' },
+]
+
+/** Faixa de preço (em reais) do slider de Filtros. */
+export const PRICE_MIN = 0
+export const PRICE_MAX = 2000
+export const PRICE_STEP = 50
+
 /**
  * Categorias sugeridas — extraídas da lista de desejos original do usuário.
  * O campo é livre; estas são apenas as opções rápidas na tela de edição.
