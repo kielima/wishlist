@@ -106,6 +106,37 @@ function titleTag(html: string): string | null {
   return m ? decode(m[1]) : null
 }
 
+/**
+ * Imagens de produto da Amazon. As páginas da Amazon não têm `og:image` — a
+ * galeria fica num blob JS. Pegamos, em ordem de preferência: o `"hiRes"` da
+ * galeria, o mapa `data-a-dynamic-image` da imagem principal e, por fim, o
+ * `"large"`. Os padrões são específicos da Amazon, então é seguro usar como
+ * fallback genérico (não casa em outras lojas).
+ */
+function fromAmazon(html: string): string[] {
+  const out: string[] = []
+  const add = (u?: string | null) => {
+    if (u && u !== 'null' && /^https:\/\//.test(u) && !out.includes(u)) out.push(u)
+  }
+
+  for (const m of html.matchAll(/"hiRes":"(https:\/\/[^"]+)"/g)) add(m[1])
+
+  if (!out.length) {
+    const m = html.match(/data-a-dynamic-image=["']([^"']+)["']/)
+    if (m) {
+      try {
+        for (const u of Object.keys(JSON.parse(decode(m[1])))) add(u)
+      } catch {
+        /* ignore */
+      }
+    }
+  }
+
+  if (!out.length) for (const m of html.matchAll(/"large":"(https:\/\/[^"]+)"/g)) add(m[1])
+
+  return out
+}
+
 const UA = 'Mozilla/5.0 (compatible; WishlistClipper/1.0; +https://kielima.github.io/wishlist/)'
 
 /**
@@ -192,6 +223,8 @@ Deno.serve(async (req: Request) => {
     const twImage = meta(html, 'twitter:image')
     const images: string[] = []
     for (const u of [...ld.images, ogImage, twImage]) if (u && !images.includes(u)) images.push(u)
+    // Amazon não expõe og:image; cai no blob de imagens da galeria.
+    if (!images.length) for (const u of fromAmazon(html)) images.push(u)
     const image = images[0] ?? null
     const price = ld.price ?? parsePriceMeta(html)
     const currency = ld.currency || meta(html, 'og:price:currency') || null
