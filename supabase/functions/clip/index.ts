@@ -215,21 +215,29 @@ Deno.serve(async (req: Request) => {
     if (!url) return json({ error: 'missing url' }, 400)
     if (!/^https?:\/\//i.test(url)) url = 'https://' + url
 
-    const html = await fetchWithCookies(url)
+    // O AliExpress às vezes responde com a casca vazia (sem nome nem imagem)
+    // mesmo após a dança de cookies. Quando isso acontece, repetir a busca
+    // com um cookie jar novo normalmente resolve — tentamos até 3 vezes.
+    let result = { name: '', image: null as string | null, images: [] as string[], price: null as number | null, currency: null as string | null }
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const html = await fetchWithCookies(url)
 
-    const ld = fromJsonLd(html)
-    const name = ld.name || meta(html, 'og:title') || titleTag(html) || ''
-    const ogImage = meta(html, 'og:image')
-    const twImage = meta(html, 'twitter:image')
-    const images: string[] = []
-    for (const u of [...ld.images, ogImage, twImage]) if (u && !images.includes(u)) images.push(u)
-    // Amazon não expõe og:image; cai no blob de imagens da galeria.
-    if (!images.length) for (const u of fromAmazon(html)) images.push(u)
-    const image = images[0] ?? null
-    const price = ld.price ?? parsePriceMeta(html)
-    const currency = ld.currency || meta(html, 'og:price:currency') || null
+      const ld = fromJsonLd(html)
+      const name = ld.name || meta(html, 'og:title') || titleTag(html) || ''
+      const ogImage = meta(html, 'og:image')
+      const twImage = meta(html, 'twitter:image')
+      const images: string[] = []
+      for (const u of [...ld.images, ogImage, twImage]) if (u && !images.includes(u)) images.push(u)
+      // Amazon não expõe og:image; cai no blob de imagens da galeria.
+      if (!images.length) for (const u of fromAmazon(html)) images.push(u)
+      const price = ld.price ?? parsePriceMeta(html)
+      const currency = ld.currency || meta(html, 'og:price:currency') || null
 
-    return json({ name, image, images, price, currency, link: url })
+      result = { name, image: images[0] ?? null, images, price, currency }
+      if (name || result.image) break // conseguiu algo útil
+    }
+
+    return json({ ...result, link: url })
   } catch (e) {
     return json({ error: String(e) }, 500)
   }
