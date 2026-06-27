@@ -106,6 +106,70 @@ function titleTag(html: string): string | null {
   return m ? decode(m[1]) : null
 }
 
+const UA = 'Mozilla/5.0 (compatible; WishlistClipper/1.0; +https://kielima.github.io/wishlist/)'
+
+/**
+ * Busca uma URL seguindo os redirects manualmente e mantendo um cookie jar.
+ *
+ * Algumas lojas (notadamente o AliExpress) protegem a página com uma dança de
+ * cookies: o primeiro acesso devolve 302 para uma página `sync_cookie_*` que
+ * grava cookies e só então redireciona de volta ao produto. O `fetch` do Deno
+ * segue os 302 mas NÃO reenvia os `Set-Cookie` recebidos no caminho, então
+ * caía na casca vazia (og:image em branco) e nenhuma foto era extraída.
+ * Aqui acumulamos os cookies a cada salto e os reenviamos no próximo.
+ */
+async function fetchWithCookies(startUrl: string, maxHops = 10): Promise<string> {
+  const jar = new Map<string, string>()
+  let url = startUrl
+
+  for (let hop = 0; hop < maxHops; hop++) {
+    const cookie = [...jar].map(([k, v]) => `${k}=${v}`).join('; ')
+    const res = await fetch(url, {
+      headers: {
+        'User-Agent': UA,
+        Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'pt-BR,pt;q=0.9,en;q=0.8',
+        ...(cookie ? { Cookie: cookie } : {}),
+      },
+      redirect: 'manual',
+    })
+
+    // Acumula os cookies devolvidos neste salto.
+    for (const sc of res.headers.getSetCookie()) {
+      const pair = sc.split(';', 1)[0]
+      const eq = pair.indexOf('=')
+      if (eq <= 0) continue
+      const name = pair.slice(0, eq).trim()
+      const value = pair.slice(eq + 1).trim()
+      if (value) jar.set(name, value)
+      else jar.delete(name)
+    }
+
+    if (res.status >= 300 && res.status < 400) {
+      const loc = res.headers.get('location')
+      await res.body?.cancel()
+      if (!loc) break
+      url = new URL(loc, url).toString()
+      continue
+    }
+
+    return await res.text()
+  }
+
+  // Esgotou os saltos: faz uma última tentativa com o jar montado.
+  const cookie = [...jar].map(([k, v]) => `${k}=${v}`).join('; ')
+  const res = await fetch(url, {
+    headers: {
+      'User-Agent': UA,
+      Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+      'Accept-Language': 'pt-BR,pt;q=0.9,en;q=0.8',
+      ...(cookie ? { Cookie: cookie } : {}),
+    },
+    redirect: 'follow',
+  })
+  return await res.text()
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors })
 
@@ -120,14 +184,7 @@ Deno.serve(async (req: Request) => {
     if (!url) return json({ error: 'missing url' }, 400)
     if (!/^https?:\/\//i.test(url)) url = 'https://' + url
 
-    const res = await fetch(url, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (compatible; WishlistClipper/1.0; +https://kielima.github.io/wishlist/)',
-        'Accept-Language': 'pt-BR,pt;q=0.9,en;q=0.8',
-      },
-      redirect: 'follow',
-    })
-    const html = await res.text()
+    const html = await fetchWithCookies(url)
 
     const ld = fromJsonLd(html)
     const name = ld.name || meta(html, 'og:title') || titleTag(html) || ''
