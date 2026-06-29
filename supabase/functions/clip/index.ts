@@ -106,6 +106,37 @@ function titleTag(html: string): string | null {
   return m ? decode(m[1]) : null
 }
 
+/**
+ * Imagens de produto da Amazon. As páginas da Amazon não têm `og:image` — a
+ * galeria fica num blob JS. Pegamos, em ordem de preferência: o `"hiRes"` da
+ * galeria, o mapa `data-a-dynamic-image` da imagem principal e, por fim, o
+ * `"large"`. Os padrões são específicos da Amazon, então é seguro usar como
+ * fallback genérico (não casa em outras lojas).
+ */
+function fromAmazon(html: string): string[] {
+  const out: string[] = []
+  const add = (u?: string | null) => {
+    if (u && u !== 'null' && /^https:\/\//.test(u) && !out.includes(u)) out.push(u)
+  }
+
+  for (const m of html.matchAll(/"hiRes":"(https:\/\/[^"]+)"/g)) add(m[1])
+
+  if (!out.length) {
+    const m = html.match(/data-a-dynamic-image=["']([^"']+)["']/)
+    if (m) {
+      try {
+        for (const u of Object.keys(JSON.parse(decode(m[1])))) add(u)
+      } catch {
+        /* ignore */
+      }
+    }
+  }
+
+  if (!out.length) for (const m of html.matchAll(/"large":"(https:\/\/[^"]+)"/g)) add(m[1])
+
+  return out
+}
+
 const UA = 'Mozilla/5.0 (compatible; WishlistClipper/1.0; +https://kielima.github.io/wishlist/)'
 
 /**
@@ -184,19 +215,29 @@ Deno.serve(async (req: Request) => {
     if (!url) return json({ error: 'missing url' }, 400)
     if (!/^https?:\/\//i.test(url)) url = 'https://' + url
 
-    const html = await fetchWithCookies(url)
+    // O AliExpress às vezes responde com a casca vazia (sem nome nem imagem)
+    // mesmo após a dança de cookies. Quando isso acontece, repetir a busca
+    // com um cookie jar novo normalmente resolve — tentamos até 3 vezes.
+    let result = { name: '', image: null as string | null, images: [] as string[], price: null as number | null, currency: null as string | null }
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const html = await fetchWithCookies(url)
 
-    const ld = fromJsonLd(html)
-    const name = ld.name || meta(html, 'og:title') || titleTag(html) || ''
-    const ogImage = meta(html, 'og:image')
-    const twImage = meta(html, 'twitter:image')
-    const images: string[] = []
-    for (const u of [...ld.images, ogImage, twImage]) if (u && !images.includes(u)) images.push(u)
-    const image = images[0] ?? null
-    const price = ld.price ?? parsePriceMeta(html)
-    const currency = ld.currency || meta(html, 'og:price:currency') || null
+      const ld = fromJsonLd(html)
+      const name = ld.name || meta(html, 'og:title') || titleTag(html) || ''
+      const ogImage = meta(html, 'og:image')
+      const twImage = meta(html, 'twitter:image')
+      const images: string[] = []
+      for (const u of [...ld.images, ogImage, twImage]) if (u && !images.includes(u)) images.push(u)
+      // Amazon não expõe og:image; cai no blob de imagens da galeria.
+      if (!images.length) for (const u of fromAmazon(html)) images.push(u)
+      const price = ld.price ?? parsePriceMeta(html)
+      const currency = ld.currency || meta(html, 'og:price:currency') || null
 
-    return json({ name, image, images, price, currency, link: url })
+      result = { name, image: images[0] ?? null, images, price, currency }
+      if (name || result.image) break // conseguiu algo útil
+    }
+
+    return json({ ...result, link: url })
   } catch (e) {
     return json({ error: String(e) }, 500)
   }
