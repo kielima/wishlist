@@ -35,7 +35,7 @@ function WishlistApp({ onSignOut }: { onSignOut?: () => void }) {
 
   const [filter, setFilter] = useState<Filter>('todos')
   const [categories, setCategories] = useState<string[]>([])
-  const [sortBy, setSortBy] = useState<SortBy>('priority')
+  const [sortBy, setSortBy] = useState<SortBy>('priceAsc')
   const [priorities, setPriorities] = useState<Priority[]>([])
   const [priceMin, setPriceMin] = useState(PRICE_MIN)
   const [priceMax, setPriceMax] = useState(PRICE_MAX)
