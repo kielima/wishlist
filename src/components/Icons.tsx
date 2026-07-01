@@ -127,6 +127,23 @@ export function SidebarIcon({ color = 'currentColor' }: { color?: string }) {
   )
 }
 
+export function PencilIcon({ size = 15, color = '#9a9a9a' }: { size?: number; color?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 16 16">
+      <path d="M10.5 3l2.5 2.5M3 13l1-3 6.5-6.5 2.5 2.5L6.5 12.5 3.5 13.5 3 13z" stroke={color} strokeWidth="1.3" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
+export function GearIcon({ size = 15, color = 'currentColor' }: { size?: number; color?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 16 16">
+      <circle cx="8" cy="8" r="2.1" stroke={color} strokeWidth="1.3" fill="none" />
+      <path d="M8 1.5v1.6M8 12.9v1.6M14.5 8h-1.6M3.1 8H1.5M12.6 3.4l-1.1 1.1M4.5 11.5l-1.1 1.1M12.6 12.6l-1.1-1.1M4.5 4.5L3.4 3.4" stroke={color} strokeWidth="1.3" strokeLinecap="round" />
+    </svg>
+  )
+}
+
 export function PlusSmall({ size = 15, color = '#fff' }: { size?: number; color?: string }) {
   return (
     <svg width={size} height={size} viewBox="0 0 15 15">

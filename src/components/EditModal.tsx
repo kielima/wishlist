@@ -1,10 +1,11 @@
 import { useState } from 'react'
-import { CATEGORIES, PRIORITIES, STATUSES } from '../constants'
+import { PRIORITIES, STATUSES } from '../constants'
 import { fileToDataUrl } from '../format'
 import { CURRENCIES, CURRENCY_META } from '../currency'
 import type { Viewport } from '../useViewport'
+import type { CategoryResult } from '../useCategories'
 import type { Currency, Priority, Status, WishItem, WishItemInput } from '../types'
-import { CameraIcon } from './Icons'
+import { CameraIcon, GearIcon, PlusSmall } from './Icons'
 import { Overlay } from './DetailModal'
 
 interface Props {
@@ -12,6 +13,11 @@ interface Props {
   /** Valores iniciais ao criar um desejo via webclipper. */
   prefill?: { name?: string; priceReais?: string; link?: string; photo?: string; photos?: string[] }
   vp: Viewport
+  /** Categorias disponíveis para marcar. */
+  categories: string[]
+  /** Cria uma categoria nova direto no formulário. */
+  onAddCategory: (name: string) => CategoryResult
+  onManageCategories: () => void
   onClose: () => void
   onSave: (input: WishItemInput) => void
 }
@@ -22,7 +28,7 @@ const mono = 'var(--font-mono)'
 const fieldLabel: React.CSSProperties = { fontFamily: mono, fontSize: 9.5, letterSpacing: '.1em', color: '#a3a3a3', textTransform: 'uppercase', marginBottom: 8 }
 const underline: React.CSSProperties = { width: '100%', border: 'none', borderBottom: '1.5px solid #ececec', background: 'none', padding: '8px 0', color: '#0a0a0a', outline: 'none' }
 
-export default function EditModal({ item, prefill, vp, onClose, onSave }: Props) {
+export default function EditModal({ item, prefill, vp, categories: allCategories, onAddCategory, onManageCategories, onClose, onSave }: Props) {
   const { isNarrow, width } = vp
   const [name, setName] = useState(item?.name ?? prefill?.name ?? '')
   const [priceReais, setPriceReais] = useState(
@@ -36,6 +42,9 @@ export default function EditModal({ item, prefill, vp, onClose, onSave }: Props)
   const [status, setStatus] = useState<Status>(item?.status ?? 'wanted')
   const [photo, setPhoto] = useState<string | null>(item?.photo ?? prefill?.photo ?? null)
   const [error, setError] = useState(false)
+  const [addingCat, setAddingCat] = useState(false)
+  const [newCat, setNewCat] = useState('')
+  const [catError, setCatError] = useState('')
 
   const editWidth = isNarrow ? '100%' : width < 920 ? 560 : 720
   const editGrid = width < 720 ? '1fr' : '200px 1fr'
@@ -47,6 +56,20 @@ export default function EditModal({ item, prefill, vp, onClose, onSave }: Props)
 
   function toggleCat(c: string) {
     setCategories((prev) => (prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c]))
+  }
+
+  function submitNewCat() {
+    const n = newCat.trim()
+    const res = onAddCategory(n)
+    if (!res.ok) {
+      setCatError(res.error)
+      return
+    }
+    // já marca a nova categoria no item que está sendo editado
+    setCategories((prev) => (prev.includes(n) ? prev : [...prev, n]))
+    setNewCat('')
+    setCatError('')
+    setAddingCat(false)
   }
 
   function save() {
@@ -184,17 +207,45 @@ export default function EditModal({ item, prefill, vp, onClose, onSave }: Props)
               </div>
 
               <div style={{ marginTop: 22 }}>
-                <div style={fieldLabel}>Categorias</div>
+                <div style={{ ...fieldLabel, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span>Categorias</span>
+                  <button
+                    type="button"
+                    onClick={onManageCategories}
+                    className="soft-hover"
+                    style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'transparent', border: 'none', cursor: 'pointer', borderRadius: 7, padding: '3px 5px', margin: '-3px -5px', fontFamily: mono, fontSize: 9.5, letterSpacing: '.06em', color: '#a3a3a3', textTransform: 'uppercase' }}
+                  >
+                    <GearIcon size={12} color="currentColor" />
+                    Gerir
+                  </button>
+                </div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                  {CATEGORIES.map((c) => {
+                  {allCategories.map((c) => {
                     const active = categories.includes(c)
                     return (
-                      <button key={c} onClick={() => toggleCat(c)} className="press" style={{ cursor: 'pointer', borderRadius: 999, padding: '8px 14px', fontFamily: 'var(--font-body)', fontSize: 12.5, fontWeight: 600, background: active ? '#0a0a0a' : '#fff', color: active ? '#fff' : '#6b6b6b', border: active ? '1.5px solid #0a0a0a' : '1.5px solid #ececec' }}>
+                      <button key={c} type="button" onClick={() => toggleCat(c)} className="press" style={{ cursor: 'pointer', borderRadius: 999, padding: '8px 14px', fontFamily: 'var(--font-body)', fontSize: 12.5, fontWeight: 600, background: active ? '#0a0a0a' : '#fff', color: active ? '#fff' : '#6b6b6b', border: active ? '1.5px solid #0a0a0a' : '1.5px solid #ececec' }}>
                         {c}
                       </button>
                     )
                   })}
+                  {addingCat ? (
+                    <input
+                      autoFocus
+                      value={newCat}
+                      onChange={(e) => { setNewCat(e.target.value); if (catError) setCatError('') }}
+                      onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); submitNewCat() } if (e.key === 'Escape') { setAddingCat(false); setNewCat(''); setCatError('') } }}
+                      onBlur={() => { if (!newCat.trim()) { setAddingCat(false); setCatError('') } }}
+                      placeholder="Nova categoria"
+                      style={{ borderRadius: 999, padding: '8px 14px', fontFamily: 'var(--font-body)', fontSize: 12.5, fontWeight: 600, background: '#fff', color: '#0a0a0a', border: '1.5px solid #0a0a0a', outline: 'none', width: 140 }}
+                    />
+                  ) : (
+                    <button type="button" onClick={() => setAddingCat(true)} className="press" style={{ display: 'flex', alignItems: 'center', gap: 5, cursor: 'pointer', borderRadius: 999, padding: '8px 14px', fontFamily: 'var(--font-body)', fontSize: 12.5, fontWeight: 600, background: '#fff', color: '#6b6b6b', border: '1.5px dashed #dcdcdc' }}>
+                      <PlusSmall size={12} color="#6b6b6b" />
+                      Nova
+                    </button>
+                  )}
                 </div>
+                {catError && <div style={{ color: '#e2553d', fontSize: 12, marginTop: 7 }}>{catError}</div>}
               </div>
 
               <div style={{ marginTop: 22 }}>

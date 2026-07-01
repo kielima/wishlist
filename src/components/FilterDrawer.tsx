@@ -1,7 +1,7 @@
 import { useRef } from 'react'
-import { CATEGORIES, PRICE_MAX, PRICE_MIN, PRICE_STEP, PRIORITIES, SORT_OPTIONS, type SortBy } from '../constants'
+import { PRICE_MAX, PRICE_MIN, PRICE_STEP, PRIORITIES, SORT_OPTIONS, type SortBy } from '../constants'
 import type { Priority } from '../types'
-import { CloseIcon } from './Icons'
+import { CloseIcon, GearIcon } from './Icons'
 
 interface Props {
   open: boolean
@@ -15,9 +15,11 @@ interface Props {
   priceMax: number
   setPriceMin: (v: number) => void
   setPriceMax: (v: number) => void
+  allCategories: string[]
   selectedCats: string[]
   toggleCat: (c: string) => void
   onClear: () => void
+  onManageCategories: () => void
   resultCount: number
 }
 
@@ -38,9 +40,11 @@ export default function FilterDrawer({
   priceMax,
   setPriceMin,
   setPriceMax,
+  allCategories,
   selectedCats,
   toggleCat,
   onClear,
+  onManageCategories,
   resultCount,
 }: Props) {
   const trackRef = useRef<HTMLDivElement | null>(null)
@@ -165,9 +169,19 @@ export default function FilterDrawer({
           </div>
         </div>
 
-        <div style={{ ...label, margin: '24px 0 11px' }}>Categorias</div>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '24px 0 11px' }}>
+          <span style={label}>Categorias</span>
+          <button
+            onClick={onManageCategories}
+            className="soft-hover"
+            style={{ display: 'flex', alignItems: 'center', gap: 5, background: 'transparent', border: 'none', cursor: 'pointer', borderRadius: 8, padding: '4px 6px', margin: '-4px -6px -4px 0', fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 600, color: '#6b6b6b' }}
+          >
+            <GearIcon size={13} color="currentColor" />
+            Gerir
+          </button>
+        </div>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-          {CATEGORIES.map((c) => {
+          {allCategories.map((c) => {
             const active = selectedCats.includes(c)
             return (
               <button key={c} onClick={() => toggleCat(c)} className="press" style={{ cursor: 'pointer', borderRadius: 999, padding: '8px 14px', fontFamily: 'var(--font-body)', fontSize: 12.5, fontWeight: 600, background: active ? '#0a0a0a' : '#fff', color: active ? '#fff' : '#6b6b6b', border: active ? '1.5px solid #0a0a0a' : '1.5px solid #ececec' }}>
