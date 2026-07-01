@@ -1,7 +1,7 @@
 import { CATEGORIES } from '../constants'
 import { primaryCategory } from '../format'
 import type { WishItem } from '../types'
-import { PlusSmall } from './Icons'
+import { PlusSmall, SidebarIcon } from './Icons'
 
 type Filter = 'todos' | 'desejados' | 'concluidos' | 'favoritos'
 
@@ -13,6 +13,7 @@ interface Props {
   toggleCategory: (c: string) => void
   clearCategories: () => void
   onNew: () => void
+  onCollapse: () => void
 }
 
 const display = 'var(--font-display)'
@@ -27,7 +28,7 @@ const navLabel: React.CSSProperties = {
   padding: '0 8px 8px',
 }
 
-export default function Sidebar({ items, filter, setFilter, categories, toggleCategory, clearCategories, onNew }: Props) {
+export default function Sidebar({ items, filter, setFilter, categories, toggleCategory, clearCategories, onNew, onCollapse }: Props) {
   const wanted = items.filter((i) => i.status === 'wanted').length
   const bought = items.filter((i) => i.status === 'bought').length
   const favorites = items.filter((i) => i.favorite).length
@@ -50,9 +51,19 @@ export default function Sidebar({ items, filter, setFilter, categories, toggleCa
 
   return (
     <aside style={{ width: 248, flexShrink: 0, borderRight: '1px solid #f0f0f0', display: 'flex', flexDirection: 'column', padding: '26px 18px 20px' }}>
-      <div style={{ padding: '0 8px' }}>
-        <div style={{ fontFamily: mono, fontSize: 10, letterSpacing: '.2em', color: '#bdbdbd', fontWeight: 500 }}>SUA LISTA</div>
-        <div style={{ fontFamily: display, fontSize: 25, fontWeight: 700, letterSpacing: '-.01em', lineHeight: 1, marginTop: 3 }}>Desejos</div>
+      <div style={{ padding: '0 8px', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
+        <div>
+          <div style={{ fontFamily: mono, fontSize: 10, letterSpacing: '.2em', color: '#bdbdbd', fontWeight: 500 }}>SUA LISTA</div>
+          <div style={{ fontFamily: display, fontSize: 25, fontWeight: 700, letterSpacing: '-.01em', lineHeight: 1, marginTop: 3 }}>Desejos</div>
+        </div>
+        <button
+          onClick={onCollapse}
+          title="Ocultar coluna"
+          aria-label="Ocultar coluna"
+          style={{ background: 'transparent', border: 'none', cursor: 'pointer', borderRadius: 9, padding: 6, marginTop: -2, marginRight: -4, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#bdbdbd', flexShrink: 0 }}
+        >
+          <SidebarIcon color="currentColor" />
+        </button>
       </div>
 
       <button

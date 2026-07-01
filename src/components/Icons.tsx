@@ -118,6 +118,15 @@ export function FilterIcon({ color = 'currentColor' }: { color?: string }) {
   )
 }
 
+export function SidebarIcon({ color = 'currentColor' }: { color?: string }) {
+  return (
+    <svg width="18" height="18" viewBox="0 0 18 18">
+      <rect x="2" y="3" width="14" height="12" rx="2.5" stroke={color} strokeWidth="1.6" fill="none" />
+      <line x1="7" y1="3.5" x2="7" y2="14.5" stroke={color} strokeWidth="1.6" />
+    </svg>
+  )
+}
+
 export function PlusSmall({ size = 15, color = '#fff' }: { size?: number; color?: string }) {
   return (
     <svg width={size} height={size} viewBox="0 0 15 15">

@@ -43,6 +43,13 @@ function WishlistApp({ onSignOut }: { onSignOut?: () => void }) {
   const [query, setQuery] = useState('')
   const [panelOpen, setPanelOpen] = useState(false)
   const [filterOpen, setFilterOpen] = useState(false)
+  const [sidebarOpen, setSidebarOpen] = useState(() => {
+    try {
+      return localStorage.getItem('wl:sidebar') !== '0'
+    } catch {
+      return true
+    }
+  })
   const [modal, setModal] = useState<Modal>(null)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [editingItem, setEditingItem] = useState<WishItem | undefined>(undefined)
@@ -130,6 +137,17 @@ function WishlistApp({ onSignOut }: { onSignOut?: () => void }) {
     setFilterOpen(false)
     setPanelOpen((v) => !v)
   }
+  function toggleSidebar() {
+    setSidebarOpen((v) => {
+      const next = !v
+      try {
+        localStorage.setItem('wl:sidebar', next ? '1' : '0')
+      } catch {
+        /* ignore */
+      }
+      return next
+    })
+  }
   function openFilter() {
     setPanelOpen(false)
     setFilterOpen(true)
@@ -215,8 +233,8 @@ function WishlistApp({ onSignOut }: { onSignOut?: () => void }) {
   return (
     <RatesContext.Provider value={rates}>
     <div className="wl-root">
-      {hasSidebar && (
-        <Sidebar items={items} filter={filter} setFilter={setFilter} categories={categories} toggleCategory={toggleCategory} clearCategories={() => setCategories([])} onNew={newItem} />
+      {hasSidebar && sidebarOpen && (
+        <Sidebar items={items} filter={filter} setFilter={setFilter} categories={categories} toggleCategory={toggleCategory} clearCategories={() => setCategories([])} onNew={newItem} onCollapse={toggleSidebar} />
       )}
 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, position: 'relative' }}>
@@ -236,6 +254,8 @@ function WishlistApp({ onSignOut }: { onSignOut?: () => void }) {
             filterOpen={filterOpen}
             filterCount={filterCount}
             onOpenFilter={openFilter}
+            sidebarOpen={sidebarOpen}
+            onToggleSidebar={toggleSidebar}
           />
         )}
 

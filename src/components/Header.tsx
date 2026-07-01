@@ -1,5 +1,5 @@
 import { formatPrice } from '../format'
-import { BarsIcon, FilterIcon, SearchIcon } from './Icons'
+import { BarsIcon, FilterIcon, SearchIcon, SidebarIcon } from './Icons'
 
 type Layout = 'editorial' | 'gallery'
 
@@ -16,18 +16,31 @@ interface Props {
   filterOpen: boolean
   filterCount: number
   onOpenFilter: () => void
+  sidebarOpen: boolean
+  onToggleSidebar: () => void
 }
 
 const display = 'var(--font-display)'
 const mono = 'var(--font-mono)'
 
-export default function Header({ heading, resultCount, totalWantedCents, query, setQuery, layout, setLayout, panelOpen, onTogglePanel, filterOpen, filterCount, onOpenFilter }: Props) {
+export default function Header({ heading, resultCount, totalWantedCents, query, setQuery, layout, setLayout, panelOpen, onTogglePanel, filterOpen, filterCount, onOpenFilter, sidebarOpen, onToggleSidebar }: Props) {
   const isEditorial = layout === 'editorial'
   return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, padding: '26px 28px 18px', borderBottom: '1px solid #f0f0f0', flexWrap: 'wrap' }}>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 14 }}>
-        <div style={{ fontFamily: display, fontSize: 26, fontWeight: 700, letterSpacing: '-.01em' }}>{heading}</div>
-        <div style={{ fontSize: 13.5, color: '#9a9a9a' }}>{resultCount} itens · {formatPrice(totalWantedCents)}</div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+        <button
+          onClick={onToggleSidebar}
+          title={sidebarOpen ? 'Ocultar coluna' : 'Exibir coluna'}
+          aria-label={sidebarOpen ? 'Ocultar coluna' : 'Exibir coluna'}
+          aria-pressed={sidebarOpen}
+          style={{ background: sidebarOpen ? '#f4f4f4' : '#fff', border: `1px solid ${sidebarOpen ? '#f4f4f4' : '#e2e2e2'}`, cursor: 'pointer', borderRadius: 10, padding: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', color: sidebarOpen ? '#0a0a0a' : '#6b6b6b', transition: 'all .15s' }}
+        >
+          <SidebarIcon color="currentColor" />
+        </button>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 14 }}>
+          <div style={{ fontFamily: display, fontSize: 26, fontWeight: 700, letterSpacing: '-.01em' }}>{heading}</div>
+          <div style={{ fontSize: 13.5, color: '#9a9a9a' }}>{resultCount} itens · {formatPrice(totalWantedCents)}</div>
+        </div>
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#f4f4f4', borderRadius: 11, padding: '9px 13px', width: 200 }}>
