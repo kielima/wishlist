@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useWishlist } from './useWishlist'
+import { useCategories, type CategoryResult } from './useCategories'
 import { useViewport } from './useViewport'
 import { fileToDataUrl, primaryCategory } from './format'
 import { PRICE_MAX, PRICE_MIN, PRIORITY_META, type SortBy } from './constants'
@@ -18,6 +19,7 @@ import FilterDrawer from './components/FilterDrawer'
 import ActiveChips, { type Chip } from './components/ActiveChips'
 import DetailModal from './components/DetailModal'
 import EditModal from './components/EditModal'
+import CategoryManager from './components/CategoryManager'
 import Login from './screens/Login'
 import Toast from './components/Toast'
 
@@ -29,6 +31,7 @@ const HEADINGS: Record<Filter, string> = { todos: 'Tudo', desejados: 'Desejados'
 
 function WishlistApp({ onSignOut }: { onSignOut?: () => void }) {
   const { items, create, update, remove } = useWishlist()
+  const { categories: allCategories, ensure: ensureCategories, add: addCategory, rename: renameCategoryStore, remove: removeCategoryStore } = useCategories()
   const rates = useLiveRates()
   const vp = useViewport()
   const { isNarrow, hasSidebar, isWide } = vp
@@ -50,6 +53,7 @@ function WishlistApp({ onSignOut }: { onSignOut?: () => void }) {
       return true
     }
   })
+  const [catManagerOpen, setCatManagerOpen] = useState(false)
   const [modal, setModal] = useState<Modal>(null)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [editingItem, setEditingItem] = useState<WishItem | undefined>(undefined)
@@ -98,8 +102,52 @@ function WishlistApp({ onSignOut }: { onSignOut?: () => void }) {
     })
   }, [items, filter, categories, priorities, priceMin, priceMax, query, sortBy, rates])
 
+  // Contagem de itens por categoria (usada no menu lateral e no gerenciador).
+  const catCounts = useMemo(() => {
+    const counts: Record<string, number> = {}
+    items.forEach((i) => {
+      const c = primaryCategory(i)
+      counts[c] = (counts[c] ?? 0) + 1
+    })
+    return counts
+  }, [items])
+
+  // Garante que qualquer categoria já usada por um item apareça nas opções,
+  // mesmo que tenha vindo de outro aparelho ou de uma versão anterior.
+  useEffect(() => {
+    if (items.length) ensureCategories(items.flatMap((i) => i.categories))
+  }, [items, ensureCategories])
+
   function flash(msg: string) {
     setToast({ msg, key: Date.now() })
+  }
+
+  function handleAddCategory(name: string): CategoryResult {
+    return addCategory(name)
+  }
+
+  function handleRenameCategory(oldName: string, newName: string): CategoryResult {
+    const res = renameCategoryStore(oldName, newName)
+    if (!res.ok) return res
+    const next = newName.trim()
+    // Propaga o novo nome para os itens que usavam a categoria antiga.
+    items
+      .filter((i) => i.categories.includes(oldName))
+      .forEach((i) => {
+        const updated = i.categories.map((c) => (c === oldName ? next : c))
+        void update(i.id, { categories: Array.from(new Set(updated)) })
+      })
+    // Mantém o filtro ativo coerente com o novo nome.
+    setCategories((prev) => prev.map((c) => (c === oldName ? next : c)))
+    return res
+  }
+
+  function handleRemoveCategory(name: string) {
+    removeCategoryStore(name)
+    items
+      .filter((i) => i.categories.includes(name))
+      .forEach((i) => void update(i.id, { categories: i.categories.filter((c) => c !== name) }))
+    setCategories((prev) => prev.filter((c) => c !== name))
   }
 
   // Webclipper: ao abrir via Compartilhar/extensão, busca os dados do produto
@@ -234,7 +282,7 @@ function WishlistApp({ onSignOut }: { onSignOut?: () => void }) {
     <RatesContext.Provider value={rates}>
     <div className="wl-root">
       {hasSidebar && sidebarOpen && (
-        <Sidebar items={items} filter={filter} setFilter={setFilter} categories={categories} toggleCategory={toggleCategory} clearCategories={() => setCategories([])} onNew={newItem} onCollapse={toggleSidebar} />
+        <Sidebar items={items} filter={filter} setFilter={setFilter} allCategories={allCategories} categories={categories} toggleCategory={toggleCategory} clearCategories={() => setCategories([])} onNew={newItem} onCollapse={toggleSidebar} onManageCategories={() => setCatManagerOpen(true)} />
       )}
 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, position: 'relative' }}>
@@ -297,9 +345,11 @@ function WishlistApp({ onSignOut }: { onSignOut?: () => void }) {
         priceMax={priceMax}
         setPriceMin={setPriceMin}
         setPriceMax={setPriceMax}
+        allCategories={allCategories}
         selectedCats={categories}
         toggleCat={toggleCategory}
         onClear={clearFilters}
+        onManageCategories={() => setCatManagerOpen(true)}
         resultCount={visible.length}
       />
 
@@ -314,7 +364,19 @@ function WishlistApp({ onSignOut }: { onSignOut?: () => void }) {
       {modal === 'detail' && current && (
         <DetailModal item={current} vp={vp} onClose={closeModal} onEdit={editCurrent} onDelete={deleteCurrent} onToggleBought={toggleBought} onToggleFav={() => toggleFav(current.id)} onAttachReceipt={attachReceipt} onRemoveReceipt={removeReceipt} />
       )}
-      {modal === 'edit' && <EditModal item={editingItem} prefill={clipPrefill} vp={vp} onClose={closeModal} onSave={handleSave} />}
+      {modal === 'edit' && <EditModal item={editingItem} prefill={clipPrefill} vp={vp} categories={allCategories} onAddCategory={handleAddCategory} onManageCategories={() => setCatManagerOpen(true)} onClose={closeModal} onSave={handleSave} />}
+
+      {catManagerOpen && (
+        <CategoryManager
+          categories={allCategories}
+          counts={catCounts}
+          vp={vp}
+          onClose={() => setCatManagerOpen(false)}
+          onAdd={handleAddCategory}
+          onRename={handleRenameCategory}
+          onRemove={handleRemoveCategory}
+        />
+      )}
 
       {toast && <Toast key={toast.key} message={toast.msg} />}
     </div>

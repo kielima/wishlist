@@ -1,7 +1,6 @@
-import { CATEGORIES } from '../constants'
 import { primaryCategory } from '../format'
 import type { WishItem } from '../types'
-import { PlusSmall, SidebarIcon } from './Icons'
+import { GearIcon, PlusSmall, SidebarIcon } from './Icons'
 
 type Filter = 'todos' | 'desejados' | 'concluidos' | 'favoritos'
 
@@ -9,11 +8,14 @@ interface Props {
   items: WishItem[]
   filter: Filter
   setFilter: (f: Filter) => void
+  /** Todas as categorias gerenciáveis (fonte de verdade da ordem/nomes). */
+  allCategories: string[]
   categories: string[]
   toggleCategory: (c: string) => void
   clearCategories: () => void
   onNew: () => void
   onCollapse: () => void
+  onManageCategories: () => void
 }
 
 const display = 'var(--font-display)'
@@ -28,7 +30,7 @@ const navLabel: React.CSSProperties = {
   padding: '0 8px 8px',
 }
 
-export default function Sidebar({ items, filter, setFilter, categories, toggleCategory, clearCategories, onNew, onCollapse }: Props) {
+export default function Sidebar({ items, filter, setFilter, allCategories, categories, toggleCategory, clearCategories, onNew, onCollapse, onManageCategories }: Props) {
   const wanted = items.filter((i) => i.status === 'wanted').length
   const bought = items.filter((i) => i.status === 'bought').length
   const favorites = items.filter((i) => i.favorite).length
@@ -46,7 +48,7 @@ export default function Sidebar({ items, filter, setFilter, categories, toggleCa
     counts[c] = (counts[c] ?? 0) + 1
   })
   const catNav = [{ name: 'Todas', key: null as string | null, count: items.length }].concat(
-    CATEGORIES.filter((c) => counts[c]).map((c) => ({ name: c, key: c as string | null, count: counts[c] })),
+    allCategories.filter((c) => counts[c]).map((c) => ({ name: c, key: c as string | null, count: counts[c] })),
   )
 
   return (
@@ -91,7 +93,18 @@ export default function Sidebar({ items, filter, setFilter, categories, toggleCa
           )
         })}
 
-        <div style={{ ...navLabel, padding: '18px 8px 8px' }}>Categorias</div>
+        <div style={{ ...navLabel, padding: '18px 8px 8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <span>Categorias</span>
+          <button
+            onClick={onManageCategories}
+            title="Gerir categorias"
+            aria-label="Gerir categorias"
+            className="soft-hover"
+            style={{ background: 'transparent', border: 'none', cursor: 'pointer', borderRadius: 7, padding: 3, margin: '-3px -3px -3px 0', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#bdbdbd' }}
+          >
+            <GearIcon size={14} color="currentColor" />
+          </button>
+        </div>
         {catNav.map((c) => {
           const active = c.key === null ? categories.length === 0 : categories.includes(c.key)
           return (
