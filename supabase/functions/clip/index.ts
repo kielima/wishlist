@@ -137,7 +137,24 @@ function fromAmazon(html: string): string[] {
   return out
 }
 
-const UA = 'Mozilla/5.0 (compatible; WishlistClipper/1.0; +https://kielima.github.io/wishlist/)'
+// UA de navegador: a maioria das lojas responde bem a um cliente "normal".
+const BROWSER_UA = 'Mozilla/5.0 (compatible; WishlistClipper/1.0; +https://kielima.github.io/wishlist/)'
+
+// UA de crawler social: algumas lojas (notadamente a Shopee) só renderizam os
+// metadados no servidor — og:tags e o JSON-LD com nome/imagem/preço — quando
+// reconhecem um bot de preview de link. Com um UA comum a Shopee devolve apenas
+// a casca do SPA (sem nome, sem imagem, sem preço), e nada é extraído.
+const CRAWLER_UA = 'Twitterbot/1.0'
+
+/** Hosts que escondem os metadados atrás de um UA de crawler conhecido. */
+function needsCrawlerUA(url: string): boolean {
+  try {
+    const h = new URL(url).hostname
+    return /(^|\.)shopee\.|(^|\.)shp\.ee$/i.test(h)
+  } catch {
+    return false
+  }
+}
 
 /**
  * Busca uma URL seguindo os redirects manualmente e mantendo um cookie jar.
@@ -149,7 +166,7 @@ const UA = 'Mozilla/5.0 (compatible; WishlistClipper/1.0; +https://kielima.githu
  * caía na casca vazia (og:image em branco) e nenhuma foto era extraída.
  * Aqui acumulamos os cookies a cada salto e os reenviamos no próximo.
  */
-async function fetchWithCookies(startUrl: string, maxHops = 10): Promise<string> {
+async function fetchWithCookies(startUrl: string, ua = BROWSER_UA, maxHops = 10): Promise<string> {
   const jar = new Map<string, string>()
   let url = startUrl
 
@@ -157,7 +174,7 @@ async function fetchWithCookies(startUrl: string, maxHops = 10): Promise<string>
     const cookie = [...jar].map(([k, v]) => `${k}=${v}`).join('; ')
     const res = await fetch(url, {
       headers: {
-        'User-Agent': UA,
+        'User-Agent': ua,
         Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
         'Accept-Language': 'pt-BR,pt;q=0.9,en;q=0.8',
         ...(cookie ? { Cookie: cookie } : {}),
@@ -191,7 +208,7 @@ async function fetchWithCookies(startUrl: string, maxHops = 10): Promise<string>
   const cookie = [...jar].map(([k, v]) => `${k}=${v}`).join('; ')
   const res = await fetch(url, {
     headers: {
-      'User-Agent': UA,
+      'User-Agent': ua,
       Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
       'Accept-Language': 'pt-BR,pt;q=0.9,en;q=0.8',
       ...(cookie ? { Cookie: cookie } : {}),
@@ -199,6 +216,21 @@ async function fetchWithCookies(startUrl: string, maxHops = 10): Promise<string>
     redirect: 'follow',
   })
   return await res.text()
+}
+
+/** Extrai os metadados de produto de um HTML já buscado. */
+function extract(html: string) {
+  const ld = fromJsonLd(html)
+  const name = ld.name || meta(html, 'og:title') || titleTag(html) || ''
+  const ogImage = meta(html, 'og:image')
+  const twImage = meta(html, 'twitter:image')
+  const images: string[] = []
+  for (const u of [...ld.images, ogImage, twImage]) if (u && !images.includes(u)) images.push(u)
+  // Amazon não expõe og:image; cai no blob de imagens da galeria.
+  if (!images.length) for (const u of fromAmazon(html)) images.push(u)
+  const price = ld.price ?? parsePriceMeta(html)
+  const currency = ld.currency || meta(html, 'og:price:currency') || null
+  return { name, image: images[0] ?? null, images, price, currency }
 }
 
 Deno.serve(async (req: Request) => {
@@ -215,26 +247,26 @@ Deno.serve(async (req: Request) => {
     if (!url) return json({ error: 'missing url' }, 400)
     if (!/^https?:\/\//i.test(url)) url = 'https://' + url
 
+    // Lojas como a Shopee só entregam os metadados a um UA de crawler; para
+    // essas já começamos com o UA de crawler em vez do de navegador.
+    const primaryUA = needsCrawlerUA(url) ? CRAWLER_UA : BROWSER_UA
+
     // O AliExpress às vezes responde com a casca vazia (sem nome nem imagem)
     // mesmo após a dança de cookies. Quando isso acontece, repetir a busca
     // com um cookie jar novo normalmente resolve — tentamos até 3 vezes.
     let result = { name: '', image: null as string | null, images: [] as string[], price: null as number | null, currency: null as string | null }
     for (let attempt = 0; attempt < 3; attempt++) {
-      const html = await fetchWithCookies(url)
+      const html = await fetchWithCookies(url, primaryUA)
+      result = extract(html)
+      if (result.name || result.image) break // conseguiu algo útil
+    }
 
-      const ld = fromJsonLd(html)
-      const name = ld.name || meta(html, 'og:title') || titleTag(html) || ''
-      const ogImage = meta(html, 'og:image')
-      const twImage = meta(html, 'twitter:image')
-      const images: string[] = []
-      for (const u of [...ld.images, ogImage, twImage]) if (u && !images.includes(u)) images.push(u)
-      // Amazon não expõe og:image; cai no blob de imagens da galeria.
-      if (!images.length) for (const u of fromAmazon(html)) images.push(u)
-      const price = ld.price ?? parsePriceMeta(html)
-      const currency = ld.currency || meta(html, 'og:price:currency') || null
-
-      result = { name, image: images[0] ?? null, images, price, currency }
-      if (name || result.image) break // conseguiu algo útil
+    // Último recurso: se nada foi extraído e ainda não tentamos como crawler,
+    // repete uma vez com o UA de crawler. Isso destrava o SSR de lojas que
+    // escondem os metadados de clientes comuns sem prejudicar as demais.
+    if (!result.name && !result.image && primaryUA !== CRAWLER_UA) {
+      const html = await fetchWithCookies(url, CRAWLER_UA)
+      result = extract(html)
     }
 
     return json({ ...result, link: url })
