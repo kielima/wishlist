@@ -141,10 +141,18 @@ function fromAmazon(html: string): string[] {
 const BROWSER_UA = 'Mozilla/5.0 (compatible; WishlistClipper/1.0; +https://kielima.github.io/wishlist/)'
 
 // UA de crawler social: algumas lojas (notadamente a Shopee) só renderizam os
-// metadados no servidor — og:tags e o JSON-LD com nome/imagem/preço — quando
-// reconhecem um bot de preview de link. Com um UA comum a Shopee devolve apenas
-// a casca do SPA (sem nome, sem imagem, sem preço), e nada é extraído.
-const CRAWLER_UA = 'Twitterbot/1.0'
+// metadados no servidor — as og:tags — quando reconhecem um bot de preview de
+// link. Com um UA comum a Shopee devolve apenas a casca do SPA (sem nome, sem
+// imagem), e nada é extraído.
+//
+// Usamos o UA do WhatsApp de propósito: a Shopee bloqueia com HTTP 403 os UAs
+// de crawler que exigem verificação por IP/reverse-DNS (Twitterbot, Googlebot,
+// bingbot) quando a requisição vem de um IP de datacenter — que é o caso do
+// egress desta Edge Function. O UA do WhatsApp não passa por essa verificação e
+// devolve og:title + og:image (a foto real do produto). O preço, porém, só
+// aparece no JSON-LD servido ao Twitterbot, então em links da Shopee o preço
+// não é extraído server-side (o usuário digita — ele está visível na tela).
+const CRAWLER_UA = 'WhatsApp/2.23.20.0'
 
 /** Hosts que escondem os metadados atrás de um UA de crawler conhecido. */
 function needsCrawlerUA(url: string): boolean {
@@ -221,7 +229,10 @@ async function fetchWithCookies(startUrl: string, ua = BROWSER_UA, maxHops = 10)
 /** Extrai os metadados de produto de um HTML já buscado. */
 function extract(html: string) {
   const ld = fromJsonLd(html)
-  const name = ld.name || meta(html, 'og:title') || titleTag(html) || ''
+  // A Shopee sufixa o og:title com " | Shopee Brasil"; remove esse ruído.
+  const name = (ld.name || meta(html, 'og:title') || titleTag(html) || '')
+    .replace(/\s*\|\s*Shopee(?:\s+Brasil)?\s*$/i, '')
+    .trim()
   const ogImage = meta(html, 'og:image')
   const twImage = meta(html, 'twitter:image')
   const images: string[] = []
