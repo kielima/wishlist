@@ -5,8 +5,9 @@ import { CURRENCIES, CURRENCY_META } from '../currency'
 import type { Viewport } from '../useViewport'
 import type { CategoryResult } from '../useCategories'
 import type { Currency, Priority, Status, WishItem, WishItemInput } from '../types'
-import { CameraIcon, GearIcon, PlusSmall } from './Icons'
+import { CameraIcon, CropIcon, GearIcon, PlusSmall } from './Icons'
 import { Overlay } from './DetailModal'
+import CropModal from './CropModal'
 
 interface Props {
   item?: WishItem
@@ -41,6 +42,7 @@ export default function EditModal({ item, prefill, vp, categories: allCategories
   const [categories, setCategories] = useState<string[]>(item?.categories ?? [])
   const [status, setStatus] = useState<Status>(item?.status ?? 'wanted')
   const [photo, setPhoto] = useState<string | null>(item?.photo ?? prefill?.photo ?? null)
+  const [cropSrc, setCropSrc] = useState<string | null>(null)
   const [error, setError] = useState(false)
   const [addingCat, setAddingCat] = useState(false)
   const [newCat, setNewCat] = useState('')
@@ -93,6 +95,7 @@ export default function EditModal({ item, prefill, vp, categories: allCategories
   }
 
   return (
+    <>
     <Overlay isNarrow={isNarrow} onClose={onClose}>
       <div
         onClick={(e) => e.stopPropagation()}
@@ -119,8 +122,21 @@ export default function EditModal({ item, prefill, vp, categories: allCategories
                     <span style={{ fontFamily: mono, fontSize: 9.5, letterSpacing: '.06em', color: '#b0b0b0', textTransform: 'uppercase' }}>Adicionar foto</span>
                   </>
                 )}
-                <input type="file" accept="image/*" onChange={async (e) => { const f = e.target.files?.[0]; if (f) setPhoto(await fileToDataUrl(f)); e.target.value = '' }} style={{ display: 'none' }} />
+                <input type="file" accept="image/*" onChange={async (e) => { const f = e.target.files?.[0]; if (f) setCropSrc(await fileToDataUrl(f)); e.target.value = '' }} style={{ display: 'none' }} />
               </label>
+
+              {photo && (
+                <button
+                  type="button"
+                  onClick={() => setCropSrc(photo)}
+                  className="press"
+                  title="Recortar foto para o modo galeria"
+                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, width: '100%', marginTop: 8, cursor: 'pointer', borderRadius: 10, padding: '8px 10px', fontFamily: 'var(--font-body)', fontSize: 12.5, fontWeight: 600, background: '#fff', color: '#6b6b6b', border: '1.5px solid #ececec' }}
+                >
+                  <CropIcon size={13} color="#6b6b6b" />
+                  Recortar
+                </button>
+              )}
 
               {prefill?.photos && prefill.photos.length > 1 && (
                 <div style={{ marginTop: 12 }}>
@@ -131,7 +147,7 @@ export default function EditModal({ item, prefill, vp, categories: allCategories
                       return (
                         <button
                           key={url}
-                          onClick={() => setPhoto(url)}
+                          onClick={() => setCropSrc(url)}
                           title="Usar esta imagem"
                           style={{ width: 52, height: 52, borderRadius: 10, padding: 0, cursor: 'pointer', overflow: 'hidden', background: '#f4f4f4', border: active ? '2px solid #0a0a0a' : '1.5px solid #ececec' }}
                         >
@@ -257,5 +273,15 @@ export default function EditModal({ item, prefill, vp, categories: allCategories
         </div>
       </div>
     </Overlay>
+
+    {cropSrc && (
+      <CropModal
+        src={cropSrc}
+        aspect={1}
+        onCancel={() => setCropSrc(null)}
+        onConfirm={(cropped) => { setPhoto(cropped); setCropSrc(null) }}
+      />
+    )}
+    </>
   )
 }
