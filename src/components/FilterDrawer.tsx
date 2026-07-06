@@ -18,6 +18,9 @@ interface Props {
   allCategories: string[]
   selectedCats: string[]
   toggleCat: (c: string) => void
+  allStores: string[]
+  selectedStores: string[]
+  toggleStore: (s: string) => void
   onClear: () => void
   onManageCategories: () => void
   resultCount: number
@@ -43,6 +46,9 @@ export default function FilterDrawer({
   allCategories,
   selectedCats,
   toggleCat,
+  allStores,
+  selectedStores,
+  toggleStore,
   onClear,
   onManageCategories,
   resultCount,
@@ -186,6 +192,18 @@ export default function FilterDrawer({
             return (
               <button key={c} onClick={() => toggleCat(c)} className="press" style={{ cursor: 'pointer', borderRadius: 999, padding: '8px 14px', fontFamily: 'var(--font-body)', fontSize: 12.5, fontWeight: 600, background: active ? '#0a0a0a' : '#fff', color: active ? '#fff' : '#6b6b6b', border: active ? '1.5px solid #0a0a0a' : '1.5px solid #ececec' }}>
                 {c}
+              </button>
+            )
+          })}
+        </div>
+
+        <div style={{ ...label, margin: '24px 0 11px' }}>Loja</div>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+          {allStores.map((s) => {
+            const active = selectedStores.includes(s)
+            return (
+              <button key={s} onClick={() => toggleStore(s)} className="press" style={{ cursor: 'pointer', borderRadius: 999, padding: '8px 14px', fontFamily: 'var(--font-body)', fontSize: 12.5, fontWeight: 600, background: active ? '#0a0a0a' : '#fff', color: active ? '#fff' : '#6b6b6b', border: active ? '1.5px solid #0a0a0a' : '1.5px solid #ececec' }}>
+                {s}
               </button>
             )
           })}

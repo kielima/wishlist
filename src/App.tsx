@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useWishlist } from './useWishlist'
 import { useCategories, type CategoryResult } from './useCategories'
 import { useViewport } from './useViewport'
-import { fileToDataUrl, primaryCategory } from './format'
+import { fileToDataUrl, primaryCategory, storeName } from './format'
 import { PRICE_MAX, PRICE_MIN, PRIORITY_META, type SortBy } from './constants'
 import { RatesContext, toBRLCents, useLiveRates } from './currency'
 import { resolveClip, takePendingClip, type ClipPrefill } from './clip'
@@ -38,6 +38,7 @@ function WishlistApp({ onSignOut }: { onSignOut?: () => void }) {
 
   const [filter, setFilter] = useState<Filter>('todos')
   const [categories, setCategories] = useState<string[]>([])
+  const [stores, setStores] = useState<string[]>([])
   const [sortBy, setSortBy] = useState<SortBy>('priceAsc')
   const [priorities, setPriorities] = useState<Priority[]>([])
   const [priceMin, setPriceMin] = useState(PRICE_MIN)
@@ -67,7 +68,38 @@ function WishlistApp({ onSignOut }: { onSignOut?: () => void }) {
     .reduce((s, i) => s + toBRLCents(i.priceCents, i.currency, rates), 0)
 
   const priceActive = priceMin > PRICE_MIN || priceMax < PRICE_MAX
-  const filterCount = priorities.length + categories.length + (priceActive ? 1 : 0)
+  const filterCount = priorities.length + categories.length + stores.length + (priceActive ? 1 : 0)
+
+  // Loja de cada item, agrupada por link. Lojas com menos de 2 itens caem em
+  // "Outros" — o objetivo é juntar itens da mesma loja para economizar frete.
+  const itemStore = useMemo(() => {
+    const rawCounts: Record<string, number> = {}
+    items.forEach((i) => {
+      const s = storeName(i.link)
+      if (s) rawCounts[s] = (rawCounts[s] ?? 0) + 1
+    })
+    const map = new Map<string, string>()
+    items.forEach((i) => {
+      const s = storeName(i.link)
+      map.set(i.id, s && rawCounts[s] >= 2 ? s : 'Outros')
+    })
+    return map
+  }, [items])
+
+  const storeCounts = useMemo(() => {
+    const counts: Record<string, number> = {}
+    itemStore.forEach((s) => {
+      counts[s] = (counts[s] ?? 0) + 1
+    })
+    return counts
+  }, [itemStore])
+
+  const allStores = useMemo(() => {
+    const names = Object.keys(storeCounts)
+      .filter((s) => s !== 'Outros')
+      .sort((a, b) => a.localeCompare(b, 'pt-BR'))
+    return storeCounts['Outros'] ? [...names, 'Outros'] : names
+  }, [storeCounts])
 
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -86,6 +118,7 @@ function WishlistApp({ onSignOut }: { onSignOut?: () => void }) {
       return (
         statusFn(i) &&
         (categories.length === 0 || categories.includes(primaryCategory(i))) &&
+        (stores.length === 0 || stores.includes(itemStore.get(i.id) ?? 'Outros')) &&
         (priorities.length === 0 || priorities.includes(i.priority)) &&
         reais >= priceMin &&
         reais <= upper &&
@@ -100,7 +133,7 @@ function WishlistApp({ onSignOut }: { onSignOut?: () => void }) {
       if ((a.status === 'bought') !== (b.status === 'bought')) return a.status === 'bought' ? 1 : -1
       return PRIORITY_META[a.priority].rank - PRIORITY_META[b.priority].rank || a.name.localeCompare(b.name, 'pt-BR')
     })
-  }, [items, filter, categories, priorities, priceMin, priceMax, query, sortBy, rates])
+  }, [items, filter, categories, stores, itemStore, priorities, priceMin, priceMax, query, sortBy, rates])
 
   // Contagem de itens por categoria (usada no menu lateral e no gerenciador).
   const catCounts = useMemo(() => {
@@ -206,6 +239,9 @@ function WishlistApp({ onSignOut }: { onSignOut?: () => void }) {
   function toggleCategory(c: string) {
     setCategories((prev) => (prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c]))
   }
+  function toggleStore(s: string) {
+    setStores((prev) => (prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s]))
+  }
   function resetPrice() {
     setPriceMin(PRICE_MIN)
     setPriceMax(PRICE_MAX)
@@ -213,6 +249,7 @@ function WishlistApp({ onSignOut }: { onSignOut?: () => void }) {
   function clearFilters() {
     setPriorities([])
     setCategories([])
+    setStores([])
     resetPrice()
   }
 
@@ -275,6 +312,7 @@ function WishlistApp({ onSignOut }: { onSignOut?: () => void }) {
   const activeChips: Chip[] = [
     ...priorities.map((p) => ({ key: `pri:${p}`, label: PRIORITY_META[p].label, onRemove: () => togglePriority(p) })),
     ...categories.map((c) => ({ key: `cat:${c}`, label: c, onRemove: () => toggleCategory(c) })),
+    ...stores.map((s) => ({ key: `store:${s}`, label: s, onRemove: () => toggleStore(s) })),
     ...(priceActive ? [{ key: 'price', label: priceLabel, onRemove: resetPrice }] : []),
   ]
 
@@ -348,6 +386,9 @@ function WishlistApp({ onSignOut }: { onSignOut?: () => void }) {
         allCategories={allCategories}
         selectedCats={categories}
         toggleCat={toggleCategory}
+        allStores={allStores}
+        selectedStores={stores}
+        toggleStore={toggleStore}
         onClear={clearFilters}
         onManageCategories={() => setCatManagerOpen(true)}
         resultCount={visible.length}

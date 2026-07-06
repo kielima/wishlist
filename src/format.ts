@@ -28,6 +28,40 @@ export function linkDomain(link: string): string {
   return link.replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/\/.*$/, '') || '—'
 }
 
+/** Nomes amigáveis para domínios de lojas comuns, usados no agrupamento por loja. */
+const STORE_NAMES: [string, string][] = [
+  ['amazon', 'Amazon'],
+  ['mercadolivre', 'Mercado Livre'],
+  ['mercadolibre', 'Mercado Livre'],
+  ['shopee', 'Shopee'],
+  ['aliexpress', 'AliExpress'],
+  ['shein', 'Shein'],
+  ['temu', 'Temu'],
+  ['magazineluiza', 'Magazine Luiza'],
+  ['magalu', 'Magazine Luiza'],
+  ['americanas', 'Americanas'],
+  ['casasbahia', 'Casas Bahia'],
+  ['pontofrio', 'Ponto Frio'],
+  ['extra.com', 'Extra'],
+  ['kabum', 'Kabum'],
+  ['submarino', 'Submarino'],
+  ['centauro', 'Centauro'],
+  ['netshoes', 'Netshoes'],
+  ['shoptime', 'Shoptime'],
+  ['ebay', 'eBay'],
+]
+
+/** Nome amigável da loja a partir do link do item, ou null sem link identificável. */
+export function storeName(link: string): string | null {
+  if (!link) return null
+  const domain = linkDomain(link).toLowerCase()
+  if (!domain || domain === '—') return null
+  const known = STORE_NAMES.find(([key]) => domain.includes(key))
+  if (known) return known[1]
+  const bare = domain.replace(/\.(com|net|org|shop|store|io)(\.br)?$/i, '').split('.')[0]
+  return bare ? bare.charAt(0).toUpperCase() + bare.slice(1) : null
+}
+
 /** Href navegável a partir de um link sem protocolo. */
 export function linkHref(link: string): string {
   if (!link) return '#'
