@@ -79,6 +79,14 @@ export function DocIcon({ w = 20, h = 24, color = '#9a9a9a' }: { w?: number; h?:
   )
 }
 
+export function CropIcon({ size = 15, color = '#fff' }: { size?: number; color?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 20 20">
+      <path d="M6 2v12a1 1 0 001 1h12M2 6h12a1 1 0 011 1v12" stroke={color} strokeWidth="1.7" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
 export function CloseIcon({ size = 13, color = '#bdbdbd' }: { size?: number; color?: string }) {
   return (
     <svg width={size} height={size} viewBox="0 0 13 13">
