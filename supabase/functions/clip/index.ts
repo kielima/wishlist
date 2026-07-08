@@ -164,6 +164,53 @@ function needsCrawlerUA(url: string): boolean {
   }
 }
 
+function isTikTok(url: string): boolean {
+  try {
+    return /(^|\.)tiktok\.com$/i.test(new URL(url).hostname)
+  } catch {
+    return false
+  }
+}
+
+/** Segue só os redirects (sem baixar o corpo) até a URL final ou esgotar os saltos. */
+async function resolveRedirect(startUrl: string, maxHops = 5): Promise<string> {
+  let url = startUrl
+  for (let hop = 0; hop < maxHops; hop++) {
+    const res = await fetch(url, { headers: { 'User-Agent': BROWSER_UA }, redirect: 'manual' })
+    await res.body?.cancel()
+    if (res.status < 300 || res.status >= 400) break
+    const loc = res.headers.get('location')
+    if (!loc) break
+    url = new URL(loc, url).toString()
+  }
+  return url
+}
+
+/**
+ * TikTok detecta o IP de datacenter da Edge Function e devolve uma página de
+ * verificação anti-bot (sem og:tags, com <title> tipo "Security Check") em vez
+ * da página do vídeo — extrair via `extract()` pegava esse título como nome.
+ * O endpoint público de oEmbed do TikTok não passa por essa checagem e devolve
+ * título + thumbnail reais. Vídeos do TikTok não são páginas de produto, então
+ * preço nunca vem daqui (o usuário digita manualmente, como já ocorre na Shopee).
+ */
+async function fromTikTokOEmbed(url: string): Promise<{ name: string; image: string | null } | null> {
+  try {
+    const resolved = await resolveRedirect(url)
+    const res = await fetch(`https://www.tiktok.com/oembed?url=${encodeURIComponent(resolved)}`, {
+      headers: { 'User-Agent': BROWSER_UA },
+    })
+    if (!res.ok) return null
+    const data = await res.json()
+    const name = typeof data?.title === 'string' ? data.title : ''
+    const image = typeof data?.thumbnail_url === 'string' ? data.thumbnail_url : null
+    if (!name && !image) return null
+    return { name, image }
+  } catch {
+    return null
+  }
+}
+
 /**
  * Busca uma URL seguindo os redirects manualmente e mantendo um cookie jar.
  *
@@ -257,6 +304,21 @@ Deno.serve(async (req: Request) => {
     }
     if (!url) return json({ error: 'missing url' }, 400)
     if (!/^https?:\/\//i.test(url)) url = 'https://' + url
+
+    if (isTikTok(url)) {
+      const oembed = await fromTikTokOEmbed(url)
+      if (oembed) {
+        return json({
+          name: oembed.name,
+          image: oembed.image,
+          images: oembed.image ? [oembed.image] : [],
+          price: null,
+          currency: null,
+          link: url,
+        })
+      }
+      // oEmbed falhou (ex.: link de TikTok Shop, não de vídeo) — cai no scraping genérico abaixo.
+    }
 
     // Lojas como a Shopee só entregam os metadados a um UA de crawler; para
     // essas já começamos com o UA de crawler em vez do de navegador.
