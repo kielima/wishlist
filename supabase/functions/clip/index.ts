@@ -189,15 +189,41 @@ async function resolveRedirect(startUrl: string, maxHops = 5): Promise<string> {
 /**
  * TikTok detecta o IP de datacenter da Edge Function e devolve uma página de
  * verificação anti-bot (sem og:tags, com <title> tipo "Security Check") em vez
- * da página do vídeo — extrair via `extract()` pegava esse título como nome.
- * O endpoint público de oEmbed do TikTok não passa por essa checagem e devolve
- * título + thumbnail reais. Vídeos do TikTok não são páginas de produto, então
- * preço nunca vem daqui (o usuário digita manualmente, como já ocorre na Shopee).
+ * da página real — de vídeo OU de produto da TikTok Shop — então `extract()`
+ * pegava esse título como nome. Os dois casos abaixo driblam a checagem sem
+ * nunca precisar buscar a página bloqueada.
  */
-async function fromTikTokOEmbed(url: string): Promise<{ name: string; image: string | null } | null> {
+
+/**
+ * TikTok Shop: o link de compartilhamento (curto ou já resolvido) carrega o
+ * título e a imagem do produto no parâmetro `og_info` (JSON urlencoded) —
+ * embutidos pelo próprio TikTok no redirect, para pré-visualização externa.
+ * A página de destino em si devolve a mesma verificação anti-bot dos vídeos,
+ * então nem tentamos buscá-la. Preço não vem no `og_info` (só nome e imagem).
+ */
+function fromTikTokShopOgInfo(url: string): { name: string; image: string | null } | null {
   try {
-    const resolved = await resolveRedirect(url)
-    const res = await fetch(`https://www.tiktok.com/oembed?url=${encodeURIComponent(resolved)}`, {
+    const raw = new URL(url).searchParams.get('og_info')
+    if (!raw) return null
+    const parsed = JSON.parse(raw)
+    const name = typeof parsed?.title === 'string' ? parsed.title : ''
+    const image = typeof parsed?.image === 'string' ? parsed.image : null
+    if (!name && !image) return null
+    return { name, image }
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Vídeos: o endpoint público de oEmbed do TikTok não passa pela checagem
+ * anti-bot e devolve título + thumbnail reais. Vídeos não são páginas de
+ * produto, então preço nunca vem daqui (o usuário digita manualmente, como
+ * já ocorre na Shopee).
+ */
+async function fromTikTokOEmbed(resolvedUrl: string): Promise<{ name: string; image: string | null } | null> {
+  try {
+    const res = await fetch(`https://www.tiktok.com/oembed?url=${encodeURIComponent(resolvedUrl)}`, {
       headers: { 'User-Agent': BROWSER_UA },
     })
     if (!res.ok) return null
@@ -306,18 +332,19 @@ Deno.serve(async (req: Request) => {
     if (!/^https?:\/\//i.test(url)) url = 'https://' + url
 
     if (isTikTok(url)) {
-      const oembed = await fromTikTokOEmbed(url)
-      if (oembed) {
+      const resolved = await resolveRedirect(url)
+      const tiktokResult = fromTikTokShopOgInfo(resolved) ?? (await fromTikTokOEmbed(resolved))
+      if (tiktokResult) {
         return json({
-          name: oembed.name,
-          image: oembed.image,
-          images: oembed.image ? [oembed.image] : [],
+          name: tiktokResult.name,
+          image: tiktokResult.image,
+          images: tiktokResult.image ? [tiktokResult.image] : [],
           price: null,
           currency: null,
           link: url,
         })
       }
-      // oEmbed falhou (ex.: link de TikTok Shop, não de vídeo) — cai no scraping genérico abaixo.
+      // Nem og_info nem oEmbed funcionaram — cai no scraping genérico abaixo.
     }
 
     // Lojas como a Shopee só entregam os metadados a um UA de crawler; para
