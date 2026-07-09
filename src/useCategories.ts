@@ -12,12 +12,27 @@ import { CATEGORIES } from './constants'
 
 const STORAGE_KEY = 'wl:categories'
 
+const norm = (s: string) => s.trim().toLowerCase()
+
+/** Remove duplicados (case/espaço-insensitive), mantendo a primeira ocorrência. */
+function dedupe(cats: string[]): string[] {
+  const seen = new Set<string>()
+  const result: string[] = []
+  for (const c of cats) {
+    const key = norm(c)
+    if (seen.has(key)) continue
+    seen.add(key)
+    result.push(c)
+  }
+  return result
+}
+
 function load(): string[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
     if (raw) {
       const parsed = JSON.parse(raw)
-      if (Array.isArray(parsed) && parsed.every((c) => typeof c === 'string')) return parsed
+      if (Array.isArray(parsed) && parsed.every((c) => typeof c === 'string')) return dedupe(parsed)
     }
   } catch {
     /* localStorage indisponível → cai no default */
@@ -36,8 +51,6 @@ function save(cats: string[]) {
 /** Resultado de uma operação de escrita — `ok:false` traz o motivo para a UI. */
 export type CategoryResult = { ok: true } | { ok: false; error: string }
 
-const norm = (s: string) => s.trim().toLowerCase()
-
 export function useCategories() {
   const [categories, setCategories] = useState<string[]>(load)
 
@@ -49,7 +62,15 @@ export function useCategories() {
   const ensure = useCallback((names: string[]) => {
     setCategories((prev) => {
       const have = new Set(prev.map(norm))
-      const extra = names.filter((n) => n.trim() && !have.has(norm(n)))
+      const extra: string[] = []
+      for (const n of names) {
+        const t = n.trim()
+        if (!t) continue
+        const key = norm(t)
+        if (have.has(key)) continue
+        have.add(key)
+        extra.push(t)
+      }
       return extra.length ? [...prev, ...extra] : prev
     })
   }, [])
