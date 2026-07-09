@@ -30,6 +30,12 @@ A UI nunca fala direto com o banco — tudo passa pelo `WishlistRepository`
 basta trocar a implementação por uma baseada em **Supabase** (auth + Postgres +
 Storage) para sincronizar entre aparelhos, sem alterar a interface.
 
+## App Android (opcional)
+
+Para lojas que bloqueiam o scraping da Edge Function por IP (ex.: Mercado
+Livre), há um app Android que envolve o PWA com um WebView interno de
+verdade — veja [`android/README.md`](android/README.md).
+
 ## Roadmap
 
 - [x] Fase 1 — app local-first funcional e instalável

@@ -1,4 +1,5 @@
 import { supabase } from './supabase'
+import { scrapeViaNativeBrowser } from './nativeClip'
 
 /** Valores que pré-preenchem o formulário "Novo desejo" ao clipar. */
 export interface ClipPrefill {
@@ -107,9 +108,28 @@ export async function resolveClip(raw: RawClip): Promise<ClipPrefill> {
     }
   }
 
-  // Caso 2: Compartilhar — só temos a URL; extrai no servidor.
   const url = raw.url || firstUrl(raw.text) || firstUrl(raw.link)
   if (!url) return { name: raw.title }
+
+  // Caso 2: app Android (não o navegador) — abre a URL num WebView interno
+  // OCULTO e extrai os dados no aparelho do usuário, igual a extensão de
+  // desktop faria. Funciona mesmo em lojas que bloqueiam a Edge Function por
+  // reputação de IP (ex.: Mercado Livre): aqui quem busca a página é o
+  // celular do usuário, não o datacenter da função. No navegador comum
+  // (PWA), isNativePlatform() é falso e isso vira um no-op imediato.
+  const native = await scrapeViaNativeBrowser(url)
+  if (native && (native.name || native.images?.length)) {
+    const photos = dedupe(native.images ?? [])
+    return {
+      name: native.name || raw.title,
+      priceReais: native.price ? String(Math.round(parseFloat(native.price))) : undefined,
+      link: native.link || url,
+      photo: photos[0],
+      photos,
+    }
+  }
+
+  // Caso 3: Compartilhar pelo navegador — só temos a URL; extrai no servidor.
   if (!supabase) return { name: raw.title, link: url }
 
   try {
