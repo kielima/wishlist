@@ -30,7 +30,7 @@ type Modal = 'detail' | 'edit' | null
 const HEADINGS: Record<Filter, string> = { todos: 'Tudo', desejados: 'Desejados', concluidos: 'Concluídos', favoritos: 'Favoritos' }
 
 function WishlistApp({ onSignOut }: { onSignOut?: () => void }) {
-  const { items, create, update, remove } = useWishlist()
+  const { items, loading: itemsLoading, create, update, remove } = useWishlist()
   const { categories: allCategories, ensure: ensureCategories, add: addCategory, rename: renameCategoryStore, remove: removeCategoryStore } = useCategories()
   const rates = useLiveRates()
   const vp = useViewport()
@@ -185,16 +185,25 @@ function WishlistApp({ onSignOut }: { onSignOut?: () => void }) {
 
   // Webclipper: ao abrir via Compartilhar/extensão, busca os dados do produto
   // e abre "Novo desejo" já preenchido.
+  const [pendingClipPrefill, setPendingClipPrefill] = useState<ClipPrefill | null>(null)
   useEffect(() => {
     const pending = takePendingClip()
     if (!pending) return
     setToast({ msg: 'Buscando dados do produto…', key: Date.now() })
-    resolveClip(pending).then((pf) => {
-      setClipPrefill(pf)
-      setEditingItem(undefined)
-      setModal('edit')
-    })
+    resolveClip(pending).then(setPendingClipPrefill)
   }, [])
+
+  // Espera a wishlist carregar antes de casar pelo link — assim, se o item já
+  // existe (ex.: salvo pelo celular sem foto/preço porque a loja bloqueou o
+  // scraping), a extensão completa ESSE item em vez de criar um duplicado.
+  useEffect(() => {
+    if (!pendingClipPrefill || itemsLoading) return
+    const match = pendingClipPrefill.link ? items.find((i) => i.link === pendingClipPrefill.link) : undefined
+    setClipPrefill(pendingClipPrefill)
+    setEditingItem(match)
+    setModal('edit')
+    setPendingClipPrefill(null)
+  }, [pendingClipPrefill, itemsLoading, items])
 
   function openDetail(id: string) {
     setSelectedId(id)

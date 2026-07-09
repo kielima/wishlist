@@ -51,6 +51,13 @@ export default function EditModal({ item, prefill, vp, categories: allCategories
   const editWidth = isNarrow ? '100%' : width < 920 ? 560 : 720
   const editGrid = width < 720 ? '1fr' : '200px 1fr'
 
+  // Completar via extensão: ao reabrir um item já existente (mesmo link) com
+  // dados novos da extensão, sugere o que a loja bloqueou no celular — sem
+  // sobrescrever o que o usuário já preencheu/ajustou.
+  const suggestName = item && prefill?.name && prefill.name !== name ? prefill.name : null
+  const suggestPrice = item && prefill?.priceReais && prefill.priceReais !== priceReais ? prefill.priceReais : null
+  const suggestPhoto = item && prefill?.photo && prefill.photo !== photo && !(prefill.photos && prefill.photos.length > 1) ? prefill.photo : null
+
   function cycleCurrency() {
     const i = CURRENCIES.findIndex((c) => c.code === currency)
     setCurrency(CURRENCIES[(i + 1) % CURRENCIES.length].code)
@@ -102,7 +109,7 @@ export default function EditModal({ item, prefill, vp, categories: allCategories
         style={{ background: '#fff', borderRadius: isNarrow ? 0 : 22, width: editWidth, maxWidth: '100%', height: isNarrow ? '100%' : 'auto', maxHeight: '100%', overflow: 'hidden', display: 'flex', flexDirection: 'column', boxShadow: '0 24px 70px rgba(0,0,0,.3)', animation: 'modalIn .3s cubic-bezier(.2,.7,.2,1) both' }}
       >
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '20px 24px', borderBottom: '1px solid #f0f0f0' }}>
-          <div style={{ fontFamily: display, fontSize: 18, fontWeight: 700 }}>{item ? 'Editar desejo' : 'Novo desejo'}</div>
+          <div style={{ fontFamily: display, fontSize: 18, fontWeight: 700 }}>{item && prefill ? 'Completar desejo' : item ? 'Editar desejo' : 'Novo desejo'}</div>
           <div style={{ display: 'flex', gap: 8 }}>
             <button onClick={onClose} className="soft-hover" style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: 14, color: '#9a9a9a', padding: '9px 12px', borderRadius: 9 }}>Cancelar</button>
             <button onClick={save} className="press" style={{ background: '#0a0a0a', border: 'none', cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: 14, fontWeight: 600, color: '#fff', padding: '9px 18px', borderRadius: 10 }}>Salvar</button>
@@ -135,6 +142,18 @@ export default function EditModal({ item, prefill, vp, categories: allCategories
                 >
                   <CropIcon size={13} color="#6b6b6b" />
                   Recortar
+                </button>
+              )}
+
+              {suggestPhoto && (
+                <button
+                  type="button"
+                  onClick={() => setCropSrc(suggestPhoto)}
+                  className="press"
+                  style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', marginTop: 8, cursor: 'pointer', borderRadius: 10, padding: '8px 10px', fontFamily: 'var(--font-body)', fontSize: 12.5, fontWeight: 600, background: '#fff', color: '#6b6b6b', border: '1.5px dashed #dcdcdc' }}
+                >
+                  <img src={suggestPhoto} alt="" style={{ width: 26, height: 26, borderRadius: 6, objectFit: 'cover', flexShrink: 0 }} />
+                  Usar foto encontrada
                 </button>
               )}
 
@@ -179,6 +198,11 @@ export default function EditModal({ item, prefill, vp, categories: allCategories
               <div style={fieldLabel}>Nome</div>
               <input value={name} onChange={(e) => { setName(e.target.value); if (error) setError(false) }} placeholder="O que você deseja?" style={{ ...underline, fontFamily: display, fontSize: 18, fontWeight: 600, borderBottomColor: error ? '#e2553d' : '#ececec' }} />
               {error && <div style={{ color: '#e2553d', fontSize: 12, marginTop: 6 }}>Dê um nome ao desejo</div>}
+              {suggestName && (
+                <button type="button" onClick={() => setName(suggestName)} className="soft-hover" style={{ display: 'block', marginTop: 6, background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', padding: 0, fontFamily: 'var(--font-body)', fontSize: 12, color: '#6b6b6b' }}>
+                  Encontrado: <span style={{ fontWeight: 600, color: '#0a0a0a' }}>{suggestName}</span> — usar
+                </button>
+              )}
 
               <div style={{ display: 'flex', gap: 16, marginTop: 20 }}>
                 <div style={{ flex: 1 }}>
@@ -195,6 +219,11 @@ export default function EditModal({ item, prefill, vp, categories: allCategories
                     </button>
                   </div>
                   <input value={priceReais} onChange={(e) => setPriceReais(e.target.value.replace(/[^0-9]/g, ''))} inputMode="numeric" placeholder="0" style={{ ...underline, fontFamily: display, fontSize: 16, fontWeight: 600 }} />
+                  {suggestPrice && (
+                    <button type="button" onClick={() => setPriceReais(suggestPrice)} className="soft-hover" style={{ display: 'block', marginTop: 6, background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', padding: 0, fontFamily: 'var(--font-body)', fontSize: 12, color: '#6b6b6b' }}>
+                      Encontrado: <span style={{ fontWeight: 600, color: '#0a0a0a' }}>{CURRENCY_META[currency].symbol} {suggestPrice}</span> — usar
+                    </button>
+                  )}
                 </div>
                 <div style={{ flex: 1 }}>
                   <div style={fieldLabel}>Link</div>
