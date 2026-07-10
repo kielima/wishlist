@@ -37,15 +37,20 @@ Não há build publicado — instale via **sideload**:
 ## Build local (com Android Studio / SDK instalado)
 
 ```bash
-npm run build        # gera dist/
-npx cap sync android # copia o build + plugins pro projeto Android
+CAPACITOR_BUILD=1 npm run build # gera dist/ com base "/" (não "/wishlist/" do GitHub Pages)
+npx cap sync android            # copia o build + plugins pro projeto Android
 cd android
 ./gradlew assembleDebug
 # APK em android/app/build/outputs/apk/debug/app-debug.apk
 ```
 
+`CAPACITOR_BUILD=1` é obrigatório: sem ele o build usa a base do GitHub Pages
+(`/wishlist/`) e os assets dão 404 dentro do WebView do app — a tela abre em
+branco.
+
 ## Atualizando depois de mudar o código web
 
-Sempre que mudar algo em `src/`, repita `npm run build && npx cap sync android`
-antes de gerar um novo APK — o WebView carrega os arquivos copiados para
+Sempre que mudar algo em `src/`, repita
+`CAPACITOR_BUILD=1 npm run build && npx cap sync android` antes de gerar um
+novo APK — o WebView carrega os arquivos copiados para
 `android/app/src/main/assets/public`, não os fontes diretamente.
