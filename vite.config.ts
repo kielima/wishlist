@@ -4,8 +4,12 @@ import { VitePWA } from 'vite-plugin-pwa'
 
 export default defineConfig(({ command }) => {
   // O repositório se chama "wishlist", então o GitHub Pages serve em /wishlist/.
-  // Em dev (serve) usamos "/" para não atrapalhar o localhost.
-  const base = command === 'build' ? '/wishlist/' : '/'
+  // Em dev (serve) usamos "/" para não atrapalhar o localhost. O app Android
+  // (Capacitor) também precisa de "/": ele serve o WebView a partir da raiz
+  // do próprio pacote, não de um subcaminho — com "/wishlist/" os assets
+  // davam 404 e a tela ficava em branco. CAPACITOR_BUILD=1 sinaliza esse caso
+  // — setar antes de `npm run build` ao gerar o build pro app Android.
+  const base = command === 'build' && !process.env.CAPACITOR_BUILD ? '/wishlist/' : '/'
 
   return {
     base,

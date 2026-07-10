@@ -23,6 +23,10 @@ jobs:
       - run: npm ci
       - run: npm run build
         env:
+          # CAPACITOR_BUILD faz o vite.config.ts usar base "/" em vez de
+          # "/wishlist/" (do GitHub Pages) — sem isso os assets dão 404 dentro
+          # do WebView do app e a tela fica em branco.
+          CAPACITOR_BUILD: '1'
           VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ vars.VITE_SUPABASE_ANON_KEY }}
       - run: npx cap sync android
