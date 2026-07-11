@@ -1,9 +1,14 @@
 name: Build Android APK
 
-# Sob demanda: o app Android existe só para dar à Wishlist um WebView interno
-# de verdade (completar itens de lojas que bloqueiam a Edge Function por IP,
-# ex.: Mercado Livre) — não faz parte do fluxo normal de deploy do PWA.
+# Roda a cada push na main (ex.: merge de PR) e também sob demanda. O app
+# Android existe só para dar à Wishlist um WebView interno de verdade
+# (completar itens de lojas que bloqueiam a Edge Function por IP, ex.:
+# Mercado Livre) — não faz parte do fluxo normal de deploy do PWA, mas o
+# APK deve sempre refletir o estado atual da main.
 on:
+  push:
+    branches:
+      - main
   workflow_dispatch:
 
 jobs:

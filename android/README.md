@@ -25,8 +25,10 @@ duplicado, e mostra sugestões de nome/preço/foto para aplicar com um toque.
 
 Não há build publicado — instale via **sideload**:
 
-1. Vá em **Actions → Build Android APK** neste repositório e rode o workflow
-   (botão "Run workflow"). Ao terminar, baixe o artefato `wishlist-debug-apk`.
+1. O workflow **Actions → Build Android APK** roda sozinho a cada push na
+   `main` (ex.: merge de PR), então normalmente já existe um build recente.
+   Abra a execução mais recente e baixe o artefato `wishlist-debug-apk`. Se
+   quiser gerar um novo sem esperar um push, use o botão "Run workflow".
 2. Transfira o `.apk` para o celular (Google Drive, e-mail, cabo USB, etc.).
 3. No Android, abra o arquivo — se for a primeira vez instalando um APK fora
    da Play Store, o sistema vai pedir para permitir "instalar apps
