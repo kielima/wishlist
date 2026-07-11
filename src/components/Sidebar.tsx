@@ -2,7 +2,7 @@ import { primaryCategory } from '../format'
 import type { WishItem } from '../types'
 import { GearIcon, PlusSmall, SidebarIcon } from './Icons'
 
-type Filter = 'todos' | 'desejados' | 'concluidos' | 'favoritos'
+type Filter = 'desejados' | 'concluidos' | 'favoritos'
 
 interface Props {
   items: WishItem[]
@@ -36,7 +36,6 @@ export default function Sidebar({ items, filter, setFilter, allCategories, categ
   const favorites = items.filter((i) => i.favorite).length
 
   const tabs: { key: Filter; label: string; count: number }[] = [
-    { key: 'todos', label: 'Todos', count: items.length },
     { key: 'desejados', label: 'Desejados', count: wanted },
     { key: 'concluidos', label: 'Concluídos', count: bought },
     { key: 'favoritos', label: 'Favoritos', count: favorites },

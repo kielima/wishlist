@@ -2,7 +2,7 @@ import type { WishItem } from '../types'
 import { formatPrice } from '../format'
 import { FilterIcon } from './Icons'
 
-type Filter = 'todos' | 'desejados' | 'concluidos' | 'favoritos'
+type Filter = 'desejados' | 'concluidos' | 'favoritos'
 type Layout = 'editorial' | 'gallery'
 
 interface Props {
@@ -25,7 +25,6 @@ export default function TopBar({ items, filter, setFilter, layout, setLayout, to
   const favorites = items.filter((i) => i.favorite).length
   const isEditorial = layout === 'editorial'
   const tabs: { key: Filter; label: string; count: number }[] = [
-    { key: 'todos', label: 'Todos', count: items.length },
     { key: 'desejados', label: 'Desejados', count: wanted },
     { key: 'concluidos', label: 'Concluídos', count: bought },
     { key: 'favoritos', label: 'Favoritos', count: favorites },
