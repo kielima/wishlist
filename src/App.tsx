@@ -23,11 +23,11 @@ import CategoryManager from './components/CategoryManager'
 import Login from './screens/Login'
 import Toast from './components/Toast'
 
-type Filter = 'todos' | 'desejados' | 'concluidos' | 'favoritos'
+type Filter = 'desejados' | 'concluidos' | 'favoritos'
 type Layout = 'editorial' | 'gallery'
 type Modal = 'detail' | 'edit' | null
 
-const HEADINGS: Record<Filter, string> = { todos: 'Tudo', desejados: 'Desejados', concluidos: 'Concluídos', favoritos: 'Favoritos' }
+const HEADINGS: Record<Filter, string> = { desejados: 'Desejados', concluidos: 'Concluídos', favoritos: 'Favoritos' }
 
 function WishlistApp({ onSignOut }: { onSignOut?: () => void }) {
   const { items, loading: itemsLoading, create, update, remove } = useWishlist()
@@ -36,7 +36,7 @@ function WishlistApp({ onSignOut }: { onSignOut?: () => void }) {
   const vp = useViewport()
   const { isNarrow, hasSidebar, isWide } = vp
 
-  const [filter, setFilter] = useState<Filter>('todos')
+  const [filter, setFilter] = useState<Filter>('desejados')
   const [categories, setCategories] = useState<string[]>([])
   const [stores, setStores] = useState<string[]>([])
   const [sortBy, setSortBy] = useState<SortBy>('priceAsc')
@@ -109,9 +109,7 @@ function WishlistApp({ onSignOut }: { onSignOut?: () => void }) {
         ? (i: WishItem) => i.status === 'wanted'
         : filter === 'concluidos'
           ? (i: WishItem) => i.status === 'bought'
-          : filter === 'favoritos'
-            ? (i: WishItem) => !!i.favorite
-            : () => true
+          : (i: WishItem) => !!i.favorite
     const upper = priceMax >= PRICE_MAX ? Infinity : priceMax
     const filtered = items.filter((i) => {
       const reais = brlReais(i)
