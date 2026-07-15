@@ -7,6 +7,7 @@ import { PRICE_MAX, PRICE_MIN, PRIORITY_META, type SortBy } from './constants'
 import { RatesContext, toBRLCents, useLiveRates } from './currency'
 import { resolveClip, takePendingClip, type ClipPrefill } from './clip'
 import { isSupabaseConfigured } from './supabase'
+import { verificarEInstalarAtualizacao } from './nativeUpdate'
 import { signOut, useSession } from './auth'
 import type { Priority, Receipt, WishItem, WishItemInput } from './types'
 import Sidebar from './components/Sidebar'
@@ -148,6 +149,16 @@ function WishlistApp({ onSignOut }: { onSignOut?: () => void }) {
   useEffect(() => {
     if (items.length) ensureCategories(items.flatMap((i) => i.categories))
   }, [items, ensureCategories])
+
+  // Auto-atualização do APK Android: verifica em background e, se houver
+  // build nova publicada, já baixa e abre o instalador sozinho.
+  useEffect(() => {
+    verificarEInstalarAtualizacao()
+      .then((iniciou) => {
+        if (iniciou) flash('Baixando atualização…')
+      })
+      .catch(() => {})
+  }, [])
 
   function flash(msg: string) {
     setToast({ msg, key: Date.now() })

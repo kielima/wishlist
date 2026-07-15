@@ -2,7 +2,9 @@ package br.com.kielima.wishlist;
 
 import android.content.Intent;
 import android.net.Uri;
+import android.os.Bundle;
 import com.getcapacitor.BridgeActivity;
+import br.com.kielima.wishlist.atualizador.AtualizadorPlugin;
 
 /**
  * O Android entrega o "Compartilhar" nativo (ACTION_SEND) aqui como extras da
@@ -18,6 +20,12 @@ import com.getcapacitor.BridgeActivity;
  * já aberto recebendo um novo compartilhamento (launchMode="singleTask").
  */
 public class MainActivity extends BridgeActivity {
+    @Override
+    public void onCreate(Bundle savedInstanceState) {
+        registerPlugin(AtualizadorPlugin.class);
+        super.onCreate(savedInstanceState);
+    }
+
     @Override
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);

@@ -9,3 +9,6 @@ interface ImportMetaEnv {
 interface ImportMeta {
   readonly env: ImportMetaEnv
 }
+
+// Commit da build instalada, injetado pelo vite.config.ts (ver src/nativeUpdate.ts).
+declare const __APP_COMMIT__: string

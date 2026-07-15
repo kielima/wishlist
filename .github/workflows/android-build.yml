@@ -25,6 +25,8 @@ jobs:
           distribution: temurin
           java-version: '21'
       - uses: android-actions/setup-android@v3
+      - name: Carimbar commit da build
+        run: echo "APP_COMMIT=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
       - run: npm ci
       - run: npm run build
         env:
@@ -34,6 +36,7 @@ jobs:
           CAPACITOR_BUILD: '1'
           VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ vars.VITE_SUPABASE_ANON_KEY }}
+          APP_COMMIT: ${{ env.APP_COMMIT }}
       - run: npx cap sync android
       - name: Build debug APK
         working-directory: android
@@ -42,3 +45,13 @@ jobs:
         with:
           name: wishlist-debug-apk
           path: android/app/build/outputs/apk/debug/app-debug.apk
+      # Publica a build no Supabase só em push na main (não em
+      # workflow_dispatch de outro branch) — é essa versão que o
+      # verificador de atualização in-app do app vai oferecer aos usuários.
+      - name: Publicar versão para atualização in-app
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: node scripts/publicar-supabase.mjs
+        env:
+          SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          APP_COMMIT: ${{ env.APP_COMMIT }}

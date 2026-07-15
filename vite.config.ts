@@ -2,6 +2,12 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 
+// Commit realmente construído (definido no workflow a partir de
+// `git rev-parse HEAD`), injetado como __APP_COMMIT__ para o verificador de
+// atualização in-app comparar com a última build publicada no Supabase.
+// Vazio em `npm run dev`/builds locais.
+const commit = process.env.APP_COMMIT ?? ''
+
 export default defineConfig(({ command }) => {
   // O repositório se chama "wishlist", então o GitHub Pages serve em /wishlist/.
   // Em dev (serve) usamos "/" para não atrapalhar o localhost. O app Android
@@ -13,6 +19,9 @@ export default defineConfig(({ command }) => {
 
   return {
     base,
+    define: {
+      __APP_COMMIT__: JSON.stringify(commit),
+    },
     plugins: [
     react(),
     VitePWA({
