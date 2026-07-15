@@ -1,5 +1,5 @@
 import { Capacitor } from '@capacitor/core'
-import { InAppBrowser } from '@capgo/capacitor-inappbrowser'
+import { InAppBrowser, InvisibilityMode } from '@capgo/capacitor-inappbrowser'
 
 export function isNativePlatform(): boolean {
   return Capacitor.isNativePlatform()
@@ -117,7 +117,13 @@ export async function scrapeViaNativeBrowser(url: string, timeoutMs = 15000): Pr
       }).catch(() => finish(null))
     })
 
-    InAppBrowser.openWebView({ url, hidden: true })
+    // FAKE_VISIBLE (em vez do AWARE padrão) faz o WebView reportar dimensões
+    // normais mesmo oculto (alpha=0). Sem isso o WebView fica com viewport
+    // zerado — o que já quebra o filtro de imagem (rect.width/height < 200) —
+    // e sites com anti-bot tipo DataDome (ex.: jbl.com.br) tratam
+    // document.hidden/visibilityState como sinal de automação e servem uma
+    // página de desafio no lugar do conteúdo real.
+    InAppBrowser.openWebView({ url, hidden: true, invisibilityMode: InvisibilityMode.FAKE_VISIBLE })
       .then(({ id }) => {
         webviewId = id
       })
