@@ -45,11 +45,17 @@ jobs:
         with:
           name: wishlist-debug-apk
           path: android/app/build/outputs/apk/debug/app-debug.apk
-      # Publica a build no Supabase só em push na main (não em
-      # workflow_dispatch de outro branch) — é essa versão que o
-      # verificador de atualização in-app do app vai oferecer aos usuários.
+      # Publica a build no Supabase só quando o ref é main — é essa versão
+      # que o verificador de atualização in-app do app vai oferecer aos
+      # usuários. Checar só o ref (e não github.event_name == 'push'):
+      # merges do bot de auto-merge (auto-merge.yml) usam GITHUB_TOKEN, que
+      # o GitHub bloqueia de disparar eventos `push` (proteção anti-loop) —
+      # por isso esse workflow é redisparado via workflow_dispatch com
+      # ref: 'main' depois de cada merge. Na prática é sempre assim que
+      # chegamos na main, então exigir event_name == 'push' faria esse step
+      # nunca rodar.
       - name: Publicar versão para atualização in-app
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        if: github.ref == 'refs/heads/main'
         run: node scripts/publicar-supabase.mjs
         env:
           SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
