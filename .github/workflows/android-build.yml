@@ -27,6 +27,17 @@ jobs:
       - uses: android-actions/setup-android@v3
       - name: Carimbar commit da build
         run: echo "APP_COMMIT=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+      # A keystore de debug padrão do Android Gradle Plugin (~/.android/debug.keystore)
+      # é gerada na hora, com uma chave nova a cada runner — cada build ficaria
+      # assinada com uma assinatura diferente. Como o verificador de atualização
+      # in-app instala a build nova por cima da instalada, o Android recusa
+      # ("App não instalado") sempre que a assinatura muda. Por isso usamos uma
+      # keystore de debug fixa (guardada como secret) em todo build, garantindo
+      # que a assinatura nunca muda entre versões.
+      - name: Restaurar keystore de debug fixa
+        run: |
+          mkdir -p ~/.android
+          echo "${{ secrets.DEBUG_KEYSTORE_BASE64 }}" | base64 -d > ~/.android/debug.keystore
       - run: npm ci
       - run: npm run build
         env:
