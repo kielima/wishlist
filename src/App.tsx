@@ -236,6 +236,10 @@ function WishlistApp({ onSignOut }: { onSignOut?: () => void }) {
     setFilterOpen(false)
     setPanelOpen((v) => !v)
   }
+  function goToList() {
+    setPanelOpen(false)
+    document.getElementById('main-scroll')?.scrollTo({ top: 0, behavior: 'smooth' })
+  }
   function toggleSidebar() {
     setSidebarOpen((v) => {
       const next = !v
@@ -414,7 +418,7 @@ function WishlistApp({ onSignOut }: { onSignOut?: () => void }) {
 
       {isNarrow && (
         <BottomBar
-          onHome={() => document.getElementById('main-scroll')?.scrollTo({ top: 0, behavior: 'smooth' })}
+          onHome={goToList}
           onNew={newItem}
           onOpenPanel={() => setPanelOpen(true)}
         />
