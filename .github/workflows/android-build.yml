@@ -62,6 +62,13 @@ jobs:
         run: ./gradlew assembleDebug
       - name: DEBUG diagnostico assinatura do APK
         run: |
+          echo "=== keystore DEPOIS do gradle build (esperado: mesmo hash/fingerprint de antes) ==="
+          sha256sum ~/.android/debug.keystore
+          wc -c ~/.android/debug.keystore
+          keytool -list -v -keystore ~/.android/debug.keystore -storepass android -alias androiddebugkey || true
+          echo "=== todas as keystores existentes no runner (procurando outra sendo usada) ==="
+          find / -iname "*.keystore" -o -iname "debug.keystore" 2>/dev/null | grep -v "^/proc" || true
+          echo "=== assinatura real do APK gerado ==="
           APKSIGNER=$(find "$ANDROID_HOME" -name apksigner -type f 2>/dev/null | head -1)
           echo "apksigner encontrado em: $APKSIGNER"
           if [ -n "$APKSIGNER" ]; then
