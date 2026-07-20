@@ -27,25 +27,24 @@ jobs:
       - uses: android-actions/setup-android@v3
       - name: Carimbar commit da build
         run: echo "APP_COMMIT=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
-      # A keystore de debug padrão do Android Gradle Plugin (~/.android/debug.keystore)
-      # é gerada na hora, com uma chave nova a cada runner — cada build ficaria
-      # assinada com uma assinatura diferente. Como o verificador de atualização
-      # in-app instala a build nova por cima da instalada, o Android recusa
-      # ("App não instalado") sempre que a assinatura muda. Por isso usamos uma
-      # keystore de debug fixa (guardada como secret) em todo build, garantindo
-      # que a assinatura nunca muda entre versões.
+      # A keystore de debug padrão do Android Gradle Plugin é gerada na hora,
+      # com uma chave nova a cada runner — cada build ficaria assinada com uma
+      # assinatura diferente. Como o verificador de atualização in-app instala
+      # a build nova por cima da instalada, o Android recusa ("App não
+      # instalado") sempre que a assinatura muda. Por isso usamos uma keystore
+      # de debug fixa (guardada como secret) em todo build.
+      #
+      # IMPORTANTE: o AGP usado aqui procura a keystore de debug em
+      # ~/.config/.android/debug.keystore (convenção XDG), não no caminho
+      # legado ~/.android/debug.keystore — restaurar só no caminho antigo faz
+      # o AGP simplesmente gerar uma keystore nova em ~/.config/.android/ e
+      # ignorar a nossa (foi exatamente o que quebrou a primeira tentativa
+      # dessa correção). Por segurança, restauramos nos dois caminhos.
       - name: Restaurar keystore de debug fixa
         run: |
-          mkdir -p ~/.android
+          mkdir -p ~/.android ~/.config/.android
           echo "${{ secrets.DEBUG_KEYSTORE_BASE64 }}" | base64 -d > ~/.android/debug.keystore
-      - name: DEBUG diagnostico keystore
-        run: |
-          echo "sha256 do arquivo restaurado:"
-          sha256sum ~/.android/debug.keystore
-          echo "tamanho em bytes:"
-          wc -c ~/.android/debug.keystore
-          echo "cert fingerprint (esperado SHA1 33:9D:14:08:51:4E:C8:99:A7:06:23:4D:4C:EB:BD:09:01:4E:D1:8F):"
-          keytool -list -v -keystore ~/.android/debug.keystore -storepass android -alias androiddebugkey || true
+          cp ~/.android/debug.keystore ~/.config/.android/debug.keystore
       - run: npm ci
       - run: npm run build
         env:
@@ -60,19 +59,17 @@ jobs:
       - name: Build debug APK
         working-directory: android
         run: ./gradlew assembleDebug
-      - name: DEBUG diagnostico assinatura do APK
+      # Confere que o APK saiu assinado com a keystore fixa (não com uma nova
+      # gerada na hora) — evita reintroduzir silenciosamente o bug de
+      # assinatura instável que quebrou a auto-atualização in-app antes.
+      - name: Verificar assinatura do APK
         run: |
-          echo "=== keystore DEPOIS do gradle build (esperado: mesmo hash/fingerprint de antes) ==="
-          sha256sum ~/.android/debug.keystore
-          wc -c ~/.android/debug.keystore
-          keytool -list -v -keystore ~/.android/debug.keystore -storepass android -alias androiddebugkey || true
-          echo "=== todas as keystores existentes no runner (procurando outra sendo usada) ==="
-          find / -iname "*.keystore" -o -iname "debug.keystore" 2>/dev/null | grep -v "^/proc" || true
-          echo "=== assinatura real do APK gerado ==="
           APKSIGNER=$(find "$ANDROID_HOME" -name apksigner -type f 2>/dev/null | head -1)
-          echo "apksigner encontrado em: $APKSIGNER"
-          if [ -n "$APKSIGNER" ]; then
-            "$APKSIGNER" verify --print-certs android/app/build/outputs/apk/debug/app-debug.apk || true
+          FINGERPRINT=$("$APKSIGNER" verify --print-certs android/app/build/outputs/apk/debug/app-debug.apk | grep "SHA-256 digest" | awk '{print $NF}')
+          echo "Assinatura do APK: $FINGERPRINT"
+          if [ "$FINGERPRINT" != "02c36a6aaa98d2009fc85c7ee66eb9f5fd958b175c9f025749ba347bb9acb6cc" ]; then
+            echo "::error::APK assinado com uma keystore diferente da fixa esperada — a auto-atualização vai quebrar (App não instalado)."
+            exit 1
           fi
       - uses: actions/upload-artifact@v4
         with:
