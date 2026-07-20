@@ -38,6 +38,14 @@ jobs:
         run: |
           mkdir -p ~/.android
           echo "${{ secrets.DEBUG_KEYSTORE_BASE64 }}" | base64 -d > ~/.android/debug.keystore
+      - name: DEBUG diagnostico keystore
+        run: |
+          echo "sha256 do arquivo restaurado:"
+          sha256sum ~/.android/debug.keystore
+          echo "tamanho em bytes:"
+          wc -c ~/.android/debug.keystore
+          echo "cert fingerprint (esperado SHA1 33:9D:14:08:51:4E:C8:99:A7:06:23:4D:4C:EB:BD:09:01:4E:D1:8F):"
+          keytool -list -v -keystore ~/.android/debug.keystore -storepass android -alias androiddebugkey || true
       - run: npm ci
       - run: npm run build
         env:
@@ -52,6 +60,13 @@ jobs:
       - name: Build debug APK
         working-directory: android
         run: ./gradlew assembleDebug
+      - name: DEBUG diagnostico assinatura do APK
+        run: |
+          APKSIGNER=$(find "$ANDROID_HOME" -name apksigner -type f 2>/dev/null | head -1)
+          echo "apksigner encontrado em: $APKSIGNER"
+          if [ -n "$APKSIGNER" ]; then
+            "$APKSIGNER" verify --print-certs android/app/build/outputs/apk/debug/app-debug.apk || true
+          fi
       - uses: actions/upload-artifact@v4
         with:
           name: wishlist-debug-apk
