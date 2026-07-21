@@ -16,13 +16,14 @@ interface Props {
   onSignOut?: () => void
   onSelectCategory: (name: string) => void
   onSelectPriority: (priority: Priority) => void
+  onSelectStore: (name: string) => void
 }
 
 const display = 'var(--font-display)'
 const mono = 'var(--font-mono)'
 const label: React.CSSProperties = { fontFamily: mono, fontSize: 9.5, letterSpacing: '.12em', color: '#a3a3a3', textTransform: 'uppercase' }
 
-export default function ResumoPanel({ items, open, inline, isNarrow, onClose, onSignOut, onSelectCategory, onSelectPriority }: Props) {
+export default function ResumoPanel({ items, open, inline, isNarrow, onClose, onSignOut, onSelectCategory, onSelectPriority, onSelectStore }: Props) {
   const t = useCountUp(open)
   const rates = useRates()
   const brl = (i: WishItem) => toBRLCents(i.priceCents, i.currency, rates)
@@ -160,7 +161,12 @@ export default function ResumoPanel({ items, open, inline, isNarrow, onClose, on
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             {storeArr.map(([name, cents]) => (
-              <div key={name}>
+              <button
+                key={name}
+                onClick={() => onSelectStore(name)}
+                className="soft-hover"
+                style={{ display: 'block', width: '100%', background: 'none', border: 'none', padding: 0, cursor: 'pointer', textAlign: 'left', font: 'inherit', color: 'inherit' }}
+              >
                 <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 6 }}>
                   <span style={{ fontSize: 13, fontWeight: 600, color: '#1a1a1a' }}>{name}</span>
                   <span style={{ fontFamily: display, fontSize: 12.5, fontWeight: 600, color: '#6b6b6b' }}>{formatPrice(Math.round(cents * t))}</span>
@@ -168,7 +174,7 @@ export default function ResumoPanel({ items, open, inline, isNarrow, onClose, on
                 <div style={{ height: 6, borderRadius: 4, background: '#f2f2f2', overflow: 'hidden' }}>
                   <div style={{ height: '100%', background: '#0a0a0a', borderRadius: 4, width: `${((cents / storeMax) * 100 * t).toFixed(1)}%` }} />
                 </div>
-              </div>
+              </button>
             ))}
           </div>
         )}
