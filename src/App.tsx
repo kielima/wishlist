@@ -273,6 +273,12 @@ function WishlistApp({ onSignOut }: { onSignOut?: () => void }) {
     setPriorities([priority])
     goToList()
   }
+  // Tocar numa loja no Resumo: vai pra lista de desejados já filtrada só por ela.
+  function selectStoreFromResumo(name: string) {
+    setFilter('desejados')
+    setStores([name])
+    goToList()
+  }
   function toggleStore(s: string) {
     setStores((prev) => (prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s]))
   }
@@ -400,7 +406,7 @@ function WishlistApp({ onSignOut }: { onSignOut?: () => void }) {
       {showBackdrop && (
         <div onClick={() => setPanelOpen(false)} style={{ position: 'absolute', inset: 0, background: 'rgba(10,10,10,.28)', zIndex: 40, animation: 'fadeIn .25s ease' }} />
       )}
-      <ResumoPanel items={items} open={panelOpen} inline={panelInline} isNarrow={isNarrow} onClose={() => setPanelOpen(false)} onSignOut={onSignOut} onSelectCategory={selectCategoryFromResumo} onSelectPriority={selectPriorityFromResumo} />
+      <ResumoPanel items={items} open={panelOpen} inline={panelInline} isNarrow={isNarrow} onClose={() => setPanelOpen(false)} onSignOut={onSignOut} onSelectCategory={selectCategoryFromResumo} onSelectPriority={selectPriorityFromResumo} onSelectStore={selectStoreFromResumo} />
 
       {filterOpen && (
         <div onClick={() => setFilterOpen(false)} style={{ position: 'absolute', inset: 0, background: 'rgba(10,10,10,.28)', zIndex: 42, animation: 'fadeIn .25s ease' }} />
