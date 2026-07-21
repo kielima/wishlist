@@ -1,8 +1,8 @@
 import { PRIORITIES } from '../constants'
-import { formatPrice, primaryCategory } from '../format'
+import { formatPrice, primaryCategory, storeName } from '../format'
 import { toBRLCents, useRates } from '../currency'
 import { useCountUp } from '../useCountUp'
-import type { WishItem } from '../types'
+import type { Priority, WishItem } from '../types'
 import { CloseIcon } from './Icons'
 import PriorityTicks from './PriorityTicks'
 
@@ -15,13 +15,14 @@ interface Props {
   onClose: () => void
   onSignOut?: () => void
   onSelectCategory: (name: string) => void
+  onSelectPriority: (priority: Priority) => void
 }
 
 const display = 'var(--font-display)'
 const mono = 'var(--font-mono)'
 const label: React.CSSProperties = { fontFamily: mono, fontSize: 9.5, letterSpacing: '.12em', color: '#a3a3a3', textTransform: 'uppercase' }
 
-export default function ResumoPanel({ items, open, inline, isNarrow, onClose, onSignOut, onSelectCategory }: Props) {
+export default function ResumoPanel({ items, open, inline, isNarrow, onClose, onSignOut, onSelectCategory, onSelectPriority }: Props) {
   const t = useCountUp(open)
   const rates = useRates()
   const brl = (i: WishItem) => toBRLCents(i.priceCents, i.currency, rates)
@@ -44,6 +45,22 @@ export default function ResumoPanel({ items, open, inline, isNarrow, onClose, on
     const list = wanted.filter((i) => i.priority === p.value)
     return { meta: p, count: list.length, cents: list.reduce((s, i) => s + brl(i), 0) }
   })
+
+  // Mesma regra do filtro de lojas (App.tsx): lojas com menos de 2 itens
+  // desejados caem em "Outros", pra não fragmentar demais o resumo.
+  const rawStoreCounts: Record<string, number> = {}
+  wanted.forEach((i) => {
+    const s = storeName(i.link)
+    if (s) rawStoreCounts[s] = (rawStoreCounts[s] ?? 0) + 1
+  })
+  const storeMap: Record<string, number> = {}
+  wanted.forEach((i) => {
+    const s = storeName(i.link)
+    const bucket = s && rawStoreCounts[s] >= 2 ? s : 'Outros'
+    storeMap[bucket] = (storeMap[bucket] ?? 0) + brl(i)
+  })
+  const storeArr = Object.entries(storeMap).sort((a, b) => b[1] - a[1])
+  const storeMax = storeArr.length ? storeArr[0][1] : 1
 
   return (
     <aside
@@ -124,13 +141,37 @@ export default function ResumoPanel({ items, open, inline, isNarrow, onClose, on
 
         <div style={{ ...label, marginTop: 26, marginBottom: 8 }}>Por prioridade</div>
         {priBreakdown.map(({ meta, count, cents }) => (
-          <div key={meta.value} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 0', borderBottom: '1px solid #f4f4f4' }}>
+          <button
+            key={meta.value}
+            onClick={() => onSelectPriority(meta.value)}
+            className="soft-hover"
+            style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 0', width: '100%', background: 'none', border: 'none', borderBottom: '1px solid #f4f4f4', cursor: 'pointer', textAlign: 'left', font: 'inherit', color: 'inherit' }}
+          >
             <PriorityTicks priority={meta.value} w={5} h={13} gap={2.5} />
             <span style={{ flex: 1, fontFamily: display, fontSize: 13, fontWeight: 600, color: '#1a1a1a' }}>{meta.full}</span>
             <span style={{ fontSize: 11.5, color: '#9a9a9a' }}>{count}</span>
             <span style={{ fontFamily: display, fontSize: 12.5, fontWeight: 600, width: 72, textAlign: 'right' }}>{formatPrice(Math.round(cents * t))}</span>
-          </div>
+          </button>
         ))}
+
+        <div style={{ ...label, marginTop: 26, marginBottom: 13 }}>Por loja</div>
+        {storeArr.length === 0 ? (
+          <div style={{ fontSize: 13, color: '#bdbdbd' }}>Sem itens desejados.</div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            {storeArr.map(([name, cents]) => (
+              <div key={name}>
+                <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 6 }}>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: '#1a1a1a' }}>{name}</span>
+                  <span style={{ fontFamily: display, fontSize: 12.5, fontWeight: 600, color: '#6b6b6b' }}>{formatPrice(Math.round(cents * t))}</span>
+                </div>
+                <div style={{ height: 6, borderRadius: 4, background: '#f2f2f2', overflow: 'hidden' }}>
+                  <div style={{ height: '100%', background: '#0a0a0a', borderRadius: 4, width: `${((cents / storeMax) * 100 * t).toFixed(1)}%` }} />
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
 
         {onSignOut && (
           <button onClick={onSignOut} style={{ marginTop: 28, width: '100%', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 600, color: '#bdbdbd', padding: 8 }}>
