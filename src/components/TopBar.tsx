@@ -1,6 +1,6 @@
 import type { WishItem } from '../types'
 import { formatPrice } from '../format'
-import { FilterIcon } from './Icons'
+import { DuelIcon, FilterIcon } from './Icons'
 
 type Filter = 'desejados' | 'concluidos' | 'favoritos'
 type Layout = 'editorial' | 'gallery'
@@ -14,12 +14,13 @@ interface Props {
   totalWantedCents: number
   filterCount: number
   onOpenFilter: () => void
+  onOpenDuel: () => void
 }
 
 const display = 'var(--font-display)'
 const mono = 'var(--font-mono)'
 
-export default function TopBar({ items, filter, setFilter, layout, setLayout, totalWantedCents, filterCount, onOpenFilter }: Props) {
+export default function TopBar({ items, filter, setFilter, layout, setLayout, totalWantedCents, filterCount, onOpenFilter, onOpenDuel }: Props) {
   const wanted = items.filter((i) => i.status === 'wanted').length
   const bought = items.filter((i) => i.status === 'bought').length
   const favorites = items.filter((i) => i.favorite).length
@@ -97,6 +98,9 @@ export default function TopBar({ items, filter, setFilter, layout, setLayout, to
           {filterCount > 0 && (
             <span style={{ minWidth: 18, height: 18, padding: '0 5px', boxSizing: 'border-box', borderRadius: 9, background: '#fff', color: '#0a0a0a', fontFamily: mono, fontSize: 11, fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{filterCount}</span>
           )}
+        </button>
+        <button onClick={onOpenDuel} aria-label="Duelar itens" title="Duelar itens" className="press" style={{ flexShrink: 0, background: '#fff', border: '1.5px solid #e2e2e2', cursor: 'pointer', borderRadius: 13, width: 46, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#0a0a0a' }}>
+          <DuelIcon color="currentColor" />
         </button>
       </div>
     </div>

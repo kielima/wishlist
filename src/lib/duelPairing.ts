@@ -1,0 +1,181 @@
+import { DEFAULT_RATING, updateRating, type GlickoRating, type MatchOutcome } from './glicko2'
+
+/**
+ * Escolhe o próximo par de itens para duelo.
+ *
+ * Heurística:
+ *   - Primeiro item: peso proporcional ao RD² (precisa de mais duelos =
+ *     muito mais peso) com um floor pra itens novos não monopolizarem.
+ *   - Segundo item: dos demais, peso ∝ rd² * exp(-(|Δr|/200)²), favorecendo
+ *     RDs altos E ratings próximos (duelos informativos).
+ *   - Evita repetir o par imediatamente anterior, sem banir (só desconta).
+ */
+export interface PairingInput {
+  candidateIds: ReadonlyArray<string>
+  ratings: Readonly<Record<string, GlickoRating>>
+  lastPair?: readonly [string, string] | null
+  /** Hook pra teste/determinismo; default Math.random. */
+  rng?: () => number
+}
+
+export type Pair = readonly [string, string]
+
+function weightedPick(ids: ReadonlyArray<string>, weights: ReadonlyArray<number>, rng: () => number): string | null {
+  if (ids.length === 0) return null
+  const total = weights.reduce((a, b) => a + b, 0)
+  if (total <= 0) return ids[Math.floor(rng() * ids.length)] ?? null
+  let pick = rng() * total
+  for (let i = 0; i < ids.length; i++) {
+    pick -= weights[i]!
+    if (pick <= 0) return ids[i]!
+  }
+  return ids[ids.length - 1]!
+}
+
+function ratingOf(ratings: Readonly<Record<string, GlickoRating>>, id: string): GlickoRating {
+  return ratings[id] ?? DEFAULT_RATING
+}
+
+export function pickNextPair(input: PairingInput): Pair | null {
+  const { candidateIds, ratings, lastPair = null, rng = Math.random } = input
+  if (candidateIds.length < 2) return null
+
+  // Peso quadrático no RD: itens com baixa confiabilidade (RD alto)
+  // ganham preferência muito maior do que com peso linear.
+  const firstWeights = candidateIds.map((id) => {
+    const rd = ratingOf(ratings, id).rd
+    return Math.pow(Math.max(rd, 50), 2)
+  })
+  const first = weightedPick(candidateIds, firstWeights, rng)
+  if (!first) return null
+
+  const firstR = ratingOf(ratings, first).r
+  const rest = candidateIds.filter((id) => id !== first)
+  const secondWeights = rest.map((id) => {
+    const rating = ratingOf(ratings, id)
+    const diff = Math.abs(rating.r - firstR)
+    const proximity = Math.exp(-Math.pow(diff / 200, 2))
+    let w = Math.pow(Math.max(rating.rd, 50), 2) * proximity
+    // Penaliza repetir o par anterior (não bane, só reduz a chance).
+    if (lastPair && ((lastPair[0] === first && lastPair[1] === id) || (lastPair[1] === first && lastPair[0] === id))) {
+      w *= 0.1
+    }
+    return w
+  })
+  const second = weightedPick(rest, secondWeights, rng)
+  if (!second) return null
+
+  return [first, second] as const
+}
+
+/**
+ * Após uma sessão de duelos, retorna a ordem final dos itens elegíveis:
+ *   - Ativos (elegíveis) ordenados por rating decrescente
+ *   - Os demais preservados no fim, na ordem em que vieram
+ *
+ * `activeIds` define quem participa do ranking pelo rating; o restante
+ * é tratado como "fora do jogo" e simplesmente vai pro fim.
+ */
+export function reorderByRating(allIds: ReadonlyArray<string>, activeIds: ReadonlySet<string>, ratings: Readonly<Record<string, GlickoRating>>): string[] {
+  const active = allIds.filter((id) => activeIds.has(id))
+  const inactive = allIds.filter((id) => !activeIds.has(id))
+  active.sort((a, b) => ratingOf(ratings, b).r - ratingOf(ratings, a).r)
+  return [...active, ...inactive]
+}
+
+export interface DuelResult {
+  winnerId: string
+  loserId: string
+}
+
+/**
+ * Aplica TODOS os duelos de uma sessão como UM ÚNICO rating period do
+ * Glicko-2: cada item é reavaliado uma vez contra a lista de duelos que
+ * disputou, usando sempre o rating do oponente NO INÍCIO da sessão
+ * (`startRatings`) — que é exatamente como o Glicko-2 trata uma period.
+ *
+ * É isso que dá significado à volatilidade: um item com resultados
+ * inconsistentes dentro da mesma sessão vê o σ subir; um consistente, descer.
+ *
+ * Retorna apenas os itens que participaram (os que mudaram). Quem chama
+ * mescla com `startRatings` para obter o mapa completo.
+ */
+export function applySessionDuels(startRatings: Readonly<Record<string, GlickoRating>>, duels: ReadonlyArray<DuelResult>): Record<string, GlickoRating> {
+  const start = (id: string): GlickoRating => startRatings[id] ?? DEFAULT_RATING
+  const matches = new Map<string, MatchOutcome[]>()
+  const add = (id: string, outcome: MatchOutcome) => {
+    const arr = matches.get(id)
+    if (arr) arr.push(outcome)
+    else matches.set(id, [outcome])
+  }
+  for (const { winnerId, loserId } of duels) {
+    add(winnerId, { score: 1, opponent: start(loserId) })
+    add(loserId, { score: 0, opponent: start(winnerId) })
+  }
+  const out: Record<string, GlickoRating> = {}
+  for (const [id, ms] of matches) out[id] = updateRating(start(id), ms)
+  return out
+}
+
+/** Faixa de duelos por sessão, modulada pela confiança média. */
+export const MIN_DUEL_LIMIT = 5
+export const MAX_DUEL_LIMIT = 15
+/** Âncoras de RD para a interpolação linear (ver `classifyConfidence`). */
+const HIGH_CONFIDENCE_RD = 80
+const LOW_CONFIDENCE_RD = 200
+
+/**
+ * Limite recomendado de duelos por sessão na faixa
+ * [`MIN_DUEL_LIMIT`, `MAX_DUEL_LIMIT`], em função do RD médio dos itens
+ * ativos (proxy da confiança nos ratings):
+ *   - RD médio ≤ 80  (alta confiança)  → mínimo (poucos duelos bastam)
+ *   - RD médio ≥ 200 (baixa confiança) → máximo (precisa duelar mais)
+ *   - Entre 80 e 200: interpolação linear.
+ *
+ * Itens sem rating persistido entram com o `DEFAULT_RATING` (rd=350),
+ * o que naturalmente puxa o limite pro topo da faixa em cold start.
+ */
+export function recommendedDuelLimit(activeIds: ReadonlyArray<string>, ratings: Readonly<Record<string, GlickoRating>>): number {
+  if (activeIds.length === 0) return MIN_DUEL_LIMIT
+  let total = 0
+  for (const id of activeIds) total += ratingOf(ratings, id).rd
+  const avgRd = total / activeIds.length
+  const span = LOW_CONFIDENCE_RD - HIGH_CONFIDENCE_RD
+  const t = Math.min(1, Math.max(0, (avgRd - HIGH_CONFIDENCE_RD) / span))
+  return Math.round(MIN_DUEL_LIMIT + t * (MAX_DUEL_LIMIT - MIN_DUEL_LIMIT))
+}
+
+export interface DuelSummary {
+  /** Top 3 subidas: maior delta de posição (positivo = subiu). */
+  risers: Array<{ id: string; delta: number }>
+  /** Top 3 descidas (delta negativo). */
+  fallers: Array<{ id: string; delta: number }>
+  /** Primeiros 3 da nova ordem (líderes atuais). */
+  newTop: string[]
+}
+
+/**
+ * Compara a ordem inicial com a final e extrai os movimentos mais
+ * significativos. Itens que não estão em ambas as listas são ignorados.
+ */
+export function summarizeChanges(initialOrder: ReadonlyArray<string>, newOrder: ReadonlyArray<string>): DuelSummary {
+  const oldIdx = new Map(initialOrder.map((id, i) => [id, i]))
+  const newIdx = new Map(newOrder.map((id, i) => [id, i]))
+  const deltas: Array<{ id: string; delta: number }> = []
+  for (const id of initialOrder) {
+    const o = oldIdx.get(id)!
+    const n = newIdx.get(id)
+    if (n === undefined) continue
+    deltas.push({ id, delta: o - n })
+  }
+  const risers = deltas
+    .filter((d) => d.delta > 0)
+    .sort((a, b) => b.delta - a.delta)
+    .slice(0, 3)
+  const fallers = deltas
+    .filter((d) => d.delta < 0)
+    .sort((a, b) => a.delta - b.delta)
+    .slice(0, 3)
+  const newTop = newOrder.slice(0, 3)
+  return { risers, fallers, newTop }
+}

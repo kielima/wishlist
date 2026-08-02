@@ -152,6 +152,15 @@ export function GearIcon({ size = 15, color = 'currentColor' }: { size?: number;
   )
 }
 
+export function DuelIcon({ color = 'currentColor' }: { color?: string }) {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16">
+      <path d="M2 3l4 5-4 5M14 3l-4 5 4 5" stroke={color} strokeWidth="1.6" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+      <line x1="8" y1="1.5" x2="8" y2="14.5" stroke={color} strokeWidth="1.2" strokeDasharray="1.6 1.8" />
+    </svg>
+  )
+}
+
 export function PlusSmall({ size = 15, color = '#fff' }: { size?: number; color?: string }) {
   return (
     <svg width={size} height={size} viewBox="0 0 15 15">

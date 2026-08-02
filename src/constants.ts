@@ -32,13 +32,14 @@ export const STATUSES: { value: Status; label: string }[] = [
 ]
 
 /** Critérios de ordenação da lista (drawer de Filtros). */
-export type SortBy = 'alpha' | 'priceDesc' | 'priceAsc' | 'priority'
+export type SortBy = 'alpha' | 'priceDesc' | 'priceAsc' | 'priority' | 'duelo'
 
 export const SORT_OPTIONS: { value: SortBy; label: string }[] = [
   { value: 'alpha', label: 'Alfabética' },
   { value: 'priceDesc', label: 'Maior valor' },
   { value: 'priceAsc', label: 'Menor valor' },
   { value: 'priority', label: 'Prioridade' },
+  { value: 'duelo', label: 'Ranking de duelos' },
 ]
 
 /** Faixa de preço (em reais) do slider de Filtros. */
