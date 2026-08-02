@@ -1,5 +1,5 @@
 import { formatPrice } from '../format'
-import { BarsIcon, FilterIcon, SearchIcon, SidebarIcon } from './Icons'
+import { BarsIcon, DuelIcon, FilterIcon, SearchIcon, SidebarIcon } from './Icons'
 
 type Layout = 'editorial' | 'gallery'
 
@@ -18,12 +18,13 @@ interface Props {
   onOpenFilter: () => void
   sidebarOpen: boolean
   onToggleSidebar: () => void
+  onOpenDuel: () => void
 }
 
 const display = 'var(--font-display)'
 const mono = 'var(--font-mono)'
 
-export default function Header({ heading, resultCount, totalWantedCents, query, setQuery, layout, setLayout, panelOpen, onTogglePanel, filterOpen, filterCount, onOpenFilter, sidebarOpen, onToggleSidebar }: Props) {
+export default function Header({ heading, resultCount, totalWantedCents, query, setQuery, layout, setLayout, panelOpen, onTogglePanel, filterOpen, filterCount, onOpenFilter, sidebarOpen, onToggleSidebar, onOpenDuel }: Props) {
   const isEditorial = layout === 'editorial'
   return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, padding: '26px 28px 18px', borderBottom: '1px solid #f0f0f0', flexWrap: 'wrap' }}>
@@ -60,6 +61,11 @@ export default function Header({ heading, resultCount, totalWantedCents, query, 
           {filterCount > 0 && (
             <span style={{ minWidth: 18, height: 18, padding: '0 5px', boxSizing: 'border-box', borderRadius: 9, background: filterOpen ? '#fff' : '#0a0a0a', color: filterOpen ? '#0a0a0a' : '#fff', fontFamily: mono, fontSize: 11, fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{filterCount}</span>
           )}
+        </button>
+
+        <button onClick={onOpenDuel} style={{ background: '#fff', border: '1px solid #e2e2e2', cursor: 'pointer', borderRadius: 11, padding: '9px 15px', fontFamily: 'var(--font-body)', fontSize: 13.5, fontWeight: 600, color: '#0a0a0a', display: 'flex', alignItems: 'center', gap: 8, transition: 'all .15s' }}>
+          <DuelIcon color="currentColor" />
+          Duelo
         </button>
 
         <button onClick={onTogglePanel} style={{ background: panelOpen ? '#0a0a0a' : '#fff', border: `1px solid ${panelOpen ? '#0a0a0a' : '#e2e2e2'}`, cursor: 'pointer', borderRadius: 11, padding: '9px 15px', fontFamily: 'var(--font-body)', fontSize: 13.5, fontWeight: 600, color: panelOpen ? '#fff' : '#0a0a0a', display: 'flex', alignItems: 'center', gap: 8, transition: 'all .15s' }}>

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useWishlist } from './useWishlist'
+import { useDuelRatings } from './useDuelRatings'
 import { useCategories, type CategoryResult } from './useCategories'
 import { useViewport } from './useViewport'
 import { fileToDataUrl, primaryCategory, storeName } from './format'
@@ -9,6 +10,7 @@ import { resolveClip, takePendingClip, type ClipPrefill } from './clip'
 import { isSupabaseConfigured } from './supabase'
 import { verificarEInstalarAtualizacao } from './nativeUpdate'
 import { signOut, useSession } from './auth'
+import { DEFAULT_RATING } from './lib/glicko2'
 import type { Priority, Receipt, WishItem, WishItemInput } from './types'
 import Sidebar from './components/Sidebar'
 import Header from './components/Header'
@@ -20,18 +22,20 @@ import FilterDrawer from './components/FilterDrawer'
 import ActiveChips, { type Chip } from './components/ActiveChips'
 import DetailModal from './components/DetailModal'
 import EditModal from './components/EditModal'
+import DuelModal from './components/DuelModal'
 import CategoryManager from './components/CategoryManager'
 import Login from './screens/Login'
 import Toast from './components/Toast'
 
 type Filter = 'desejados' | 'concluidos' | 'favoritos'
 type Layout = 'editorial' | 'gallery'
-type Modal = 'detail' | 'edit' | null
+type Modal = 'detail' | 'edit' | 'duel' | null
 
 const HEADINGS: Record<Filter, string> = { desejados: 'Desejados', concluidos: 'Concluídos', favoritos: 'Favoritos' }
 
 function WishlistApp({ onSignOut }: { onSignOut?: () => void }) {
   const { items, loading: itemsLoading, create, update, remove } = useWishlist()
+  const { ratings: duelRatings, applySession: applyDuelSession } = useDuelRatings()
   const { categories: allCategories, ensure: ensureCategories, add: addCategory, rename: renameCategoryStore, remove: removeCategoryStore } = useCategories()
   const rates = useLiveRates()
   const vp = useViewport()
@@ -128,11 +132,18 @@ function WishlistApp({ onSignOut }: { onSignOut?: () => void }) {
       if (sortBy === 'priceDesc') return brlReais(b) - brlReais(a)
       if (sortBy === 'priceAsc') return brlReais(a) - brlReais(b)
       if (sortBy === 'alpha') return a.name.localeCompare(b.name, 'pt-BR')
+      if (sortBy === 'duelo') {
+        // 'duelo': desejados antes de comprados, depois por rating Glicko-2 decrescente
+        if ((a.status === 'bought') !== (b.status === 'bought')) return a.status === 'bought' ? 1 : -1
+        const ra = (duelRatings[a.id] ?? DEFAULT_RATING).r
+        const rb = (duelRatings[b.id] ?? DEFAULT_RATING).r
+        return rb - ra || a.name.localeCompare(b.name, 'pt-BR')
+      }
       // 'priority': desejados antes de comprados, depois por urgência, depois nome
       if ((a.status === 'bought') !== (b.status === 'bought')) return a.status === 'bought' ? 1 : -1
       return PRIORITY_META[a.priority].rank - PRIORITY_META[b.priority].rank || a.name.localeCompare(b.name, 'pt-BR')
     })
-  }, [items, filter, categories, stores, itemStore, priorities, priceMin, priceMax, query, sortBy, rates])
+  }, [items, filter, categories, stores, itemStore, priorities, priceMin, priceMax, query, sortBy, rates, duelRatings])
 
   // Contagem de itens por categoria (usada no menu lateral e no gerenciador).
   const catCounts = useMemo(() => {
@@ -226,6 +237,9 @@ function WishlistApp({ onSignOut }: { onSignOut?: () => void }) {
   function editCurrent() {
     setEditingItem(current)
     setModal('edit')
+  }
+  function openDuel() {
+    setModal('duel')
   }
   function closeModal() {
     setModal(null)
@@ -365,7 +379,7 @@ function WishlistApp({ onSignOut }: { onSignOut?: () => void }) {
 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, position: 'relative' }}>
         {isNarrow ? (
-          <TopBar items={items} filter={filter} setFilter={setFilter} layout={layout} setLayout={setLayout} totalWantedCents={wantedTotal} filterCount={filterCount} onOpenFilter={openFilter} />
+          <TopBar items={items} filter={filter} setFilter={setFilter} layout={layout} setLayout={setLayout} totalWantedCents={wantedTotal} filterCount={filterCount} onOpenFilter={openFilter} onOpenDuel={openDuel} />
         ) : (
           <Header
             heading={heading}
@@ -382,6 +396,7 @@ function WishlistApp({ onSignOut }: { onSignOut?: () => void }) {
             onOpenFilter={openFilter}
             sidebarOpen={sidebarOpen}
             onToggleSidebar={toggleSidebar}
+            onOpenDuel={openDuel}
           />
         )}
 
@@ -446,6 +461,7 @@ function WishlistApp({ onSignOut }: { onSignOut?: () => void }) {
         <DetailModal item={current} vp={vp} onClose={closeModal} onEdit={editCurrent} onDelete={deleteCurrent} onToggleBought={toggleBought} onToggleFav={() => toggleFav(current.id)} onAttachReceipt={attachReceipt} onRemoveReceipt={removeReceipt} />
       )}
       {modal === 'edit' && <EditModal item={editingItem} prefill={clipPrefill} vp={vp} categories={allCategories} onAddCategory={handleAddCategory} onManageCategories={() => setCatManagerOpen(true)} onClose={closeModal} onSave={handleSave} />}
+      {modal === 'duel' && <DuelModal items={items} ratings={duelRatings} vp={vp} onClose={closeModal} onApplySession={applyDuelSession} />}
 
       {catManagerOpen && (
         <CategoryManager
