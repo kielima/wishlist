@@ -106,20 +106,14 @@ function WishlistApp({ onSignOut }: { onSignOut?: () => void }) {
     return storeCounts['Outros'] ? [...names, 'Outros'] : names
   }, [storeCounts])
 
-  const visible = useMemo(() => {
+  // Critérios do drawer de Filtros + busca — compartilhados entre a lista visível
+  // e os candidatos a duelo, para que o duelo respeite o que está filtrado na tela.
+  const matchesRefine = useMemo(() => {
     const q = query.trim().toLowerCase()
-    const brlReais = (i: WishItem) => toBRLCents(i.priceCents, i.currency, rates) / 100
-    const statusFn =
-      filter === 'desejados'
-        ? (i: WishItem) => i.status === 'wanted'
-        : filter === 'concluidos'
-          ? (i: WishItem) => i.status === 'bought'
-          : (i: WishItem) => !!i.favorite
     const upper = priceMax >= PRICE_MAX ? Infinity : priceMax
-    const filtered = items.filter((i) => {
-      const reais = brlReais(i)
+    return (i: WishItem) => {
+      const reais = toBRLCents(i.priceCents, i.currency, rates) / 100
       return (
-        statusFn(i) &&
         (categories.length === 0 || categories.includes(primaryCategory(i))) &&
         (stores.length === 0 || stores.includes(itemStore.get(i.id) ?? 'Outros')) &&
         (priorities.length === 0 || priorities.includes(i.priority)) &&
@@ -127,7 +121,25 @@ function WishlistApp({ onSignOut }: { onSignOut?: () => void }) {
         reais <= upper &&
         (!q || i.name.toLowerCase().includes(q) || primaryCategory(i).toLowerCase().includes(q))
       )
-    })
+    }
+  }, [categories, stores, itemStore, priorities, priceMin, priceMax, query, rates])
+
+  // Itens elegíveis para duelo: só "desejados", restritos aos filtros ativos
+  // (preço, categoria, loja, prioridade, busca) — não à aba de status atual.
+  const duelCandidates = useMemo(
+    () => items.filter((i) => i.status === 'wanted' && matchesRefine(i)),
+    [items, matchesRefine],
+  )
+
+  const visible = useMemo(() => {
+    const brlReais = (i: WishItem) => toBRLCents(i.priceCents, i.currency, rates) / 100
+    const statusFn =
+      filter === 'desejados'
+        ? (i: WishItem) => i.status === 'wanted'
+        : filter === 'concluidos'
+          ? (i: WishItem) => i.status === 'bought'
+          : (i: WishItem) => !!i.favorite
+    const filtered = items.filter((i) => statusFn(i) && matchesRefine(i))
     return filtered.sort((a, b) => {
       if (sortBy === 'priceDesc') return brlReais(b) - brlReais(a)
       if (sortBy === 'priceAsc') return brlReais(a) - brlReais(b)
@@ -143,7 +155,7 @@ function WishlistApp({ onSignOut }: { onSignOut?: () => void }) {
       if ((a.status === 'bought') !== (b.status === 'bought')) return a.status === 'bought' ? 1 : -1
       return PRIORITY_META[a.priority].rank - PRIORITY_META[b.priority].rank || a.name.localeCompare(b.name, 'pt-BR')
     })
-  }, [items, filter, categories, stores, itemStore, priorities, priceMin, priceMax, query, sortBy, rates, duelRatings])
+  }, [items, filter, matchesRefine, sortBy, rates, duelRatings])
 
   // Contagem de itens por categoria (usada no menu lateral e no gerenciador).
   const catCounts = useMemo(() => {
@@ -461,7 +473,7 @@ function WishlistApp({ onSignOut }: { onSignOut?: () => void }) {
         <DetailModal item={current} vp={vp} onClose={closeModal} onEdit={editCurrent} onDelete={deleteCurrent} onToggleBought={toggleBought} onToggleFav={() => toggleFav(current.id)} onAttachReceipt={attachReceipt} onRemoveReceipt={removeReceipt} />
       )}
       {modal === 'edit' && <EditModal item={editingItem} prefill={clipPrefill} vp={vp} categories={allCategories} onAddCategory={handleAddCategory} onManageCategories={() => setCatManagerOpen(true)} onClose={closeModal} onSave={handleSave} />}
-      {modal === 'duel' && <DuelModal items={items} ratings={duelRatings} vp={vp} onClose={closeModal} onApplySession={applyDuelSession} />}
+      {modal === 'duel' && <DuelModal items={duelCandidates} ratings={duelRatings} vp={vp} onClose={closeModal} onApplySession={applyDuelSession} />}
 
       {catManagerOpen && (
         <CategoryManager
