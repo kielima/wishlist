@@ -10,6 +10,7 @@ import { Overlay } from './DetailModal'
 import { CloseIcon } from './Icons'
 
 interface Props {
+  /** Itens elegíveis para duelo — já restritos a "desejados" e aos filtros ativos pelo chamador. */
   items: WishItem[]
   ratings: RatingMap
   vp: Viewport
@@ -32,7 +33,7 @@ export default function DuelModal({ items, ratings, vp, onClose, onApplySession 
   const { isNarrow } = vp
   const rates = useRates()
 
-  const eligible = useMemo(() => items.filter((i) => i.status === 'wanted'), [items])
+  const eligible = items
   const eligibleIds = useMemo(() => eligible.map((i) => i.id), [eligible])
   const itemById = useMemo(() => new Map(eligible.map((i) => [i.id, i])), [eligible])
 
@@ -72,7 +73,7 @@ export default function DuelModal({ items, ratings, vp, onClose, onApplySession 
       <Overlay isNarrow={isNarrow} onClose={onClose}>
         <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', borderRadius: isNarrow ? 0 : 20, width: 380, maxWidth: '100%', padding: 28, textAlign: 'center', animation: 'modalIn .3s cubic-bezier(.2,.7,.2,1) both' }}>
           <div style={{ fontFamily: display, fontSize: 19, fontWeight: 700, marginBottom: 8 }}>Poucos itens pra duelar</div>
-          <div style={{ fontSize: 13.5, color: '#6b6b6b', lineHeight: 1.5 }}>É preciso ter ao menos 2 itens em "Desejados" para montar um duelo.</div>
+          <div style={{ fontSize: 13.5, color: '#6b6b6b', lineHeight: 1.5 }}>É preciso ter ao menos 2 itens "desejados" dentro dos filtros ativos para montar um duelo. Ajuste os filtros e tente de novo.</div>
           <button onClick={onClose} className="press" style={{ marginTop: 20, width: '100%', background: '#0a0a0a', color: '#fff', border: 'none', cursor: 'pointer', borderRadius: 12, padding: 13, fontFamily: 'var(--font-body)', fontSize: 14, fontWeight: 600 }}>
             Fechar
           </button>
