@@ -45,6 +45,45 @@ jobs:
           mkdir -p ~/.android ~/.config/.android
           echo "${{ secrets.DEBUG_KEYSTORE_BASE64 }}" | base64 -d > ~/.android/debug.keystore
           cp ~/.android/debug.keystore ~/.config/.android/debug.keystore
+
+      # google-services.json é a config do app Android no Firebase, necessária
+      # para o Google Sign-In nativo (ver src/auth.ts). Não é segredo forte,
+      # mas evitamos versioná-la: vem do secret GOOGLE_SERVICES_JSON. A
+      # sanitização abaixo tolera BOM, aspas e base64 — lixo comum ao colar o
+      # arquivo do console do Firebase num secret.
+      - name: Escrever google-services.json
+        env:
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        run: |
+          if [ -z "${GOOGLE_SERVICES_JSON:-}" ]; then
+            echo "AVISO: secret GOOGLE_SERVICES_JSON ausente — o APK vai buildar, "
+            echo "mas o login com Google não vai funcionar até adicioná-lo."
+            exit 0
+          fi
+          python3 - android/app/google-services.json <<'PYEOF'
+          import base64, json, os, sys
+          raw = os.environ["GOOGLE_SERVICES_JSON"]
+          out_path = sys.argv[1]
+          s = raw.lstrip("\ufeff").strip().strip("'\"").strip()
+          if not s.startswith("{"):
+              try:
+                  decoded = base64.b64decode(s, validate=False).decode("utf-8")
+                  if decoded.lstrip("\ufeff").strip().startswith("{"):
+                      s = decoded.lstrip("\ufeff").strip()
+              except Exception:
+                  pass
+          i, j = s.find("{"), s.rfind("}")
+          if i != -1 and j != -1 and j > i:
+              s = s[i:j + 1]
+          try:
+              d = json.loads(s)
+          except Exception as e:
+              sys.exit(f"ERRO: GOOGLE_SERVICES_JSON não é um JSON válido ({e}).")
+          with open(out_path, "w", encoding="utf-8") as f:
+              json.dump(d, f)
+          print("google-services.json escrito. project_id =",
+                d.get("project_info", {}).get("project_id"))
+          PYEOF
       - run: npm ci
       - run: npm run build
         env:
@@ -65,8 +104,16 @@ jobs:
       - name: Verificar assinatura do APK
         run: |
           APKSIGNER=$(find "$ANDROID_HOME" -name apksigner -type f 2>/dev/null | head -1)
-          FINGERPRINT=$("$APKSIGNER" verify --print-certs android/app/build/outputs/apk/debug/app-debug.apk | grep "SHA-256 digest" | awk '{print $NF}')
+          CERTS=$("$APKSIGNER" verify --print-certs android/app/build/outputs/apk/debug/app-debug.apk)
+          FINGERPRINT=$(printf '%s' "$CERTS" | grep "SHA-256 digest" | awk '{print $NF}')
           echo "Assinatura do APK: $FINGERPRINT"
+          # SHA-1 no formato que o console do Firebase pede (pares em maiúsculo
+          # separados por dois-pontos). É o dado exigido para registrar o app
+          # Android no Firebase e liberar o Google Sign-In — e não há outra
+          # forma de obtê-lo sem `keytool` numa máquina local.
+          SHA1=$(printf '%s' "$CERTS" | grep "SHA-1 digest" | awk '{print $NF}' \
+            | tr 'a-z' 'A-Z' | sed 's/../&:/g; s/:$//')
+          echo "SHA-1 para cadastrar no Firebase: $SHA1"
           if [ "$FINGERPRINT" != "02c36a6aaa98d2009fc85c7ee66eb9f5fd958b175c9f025749ba347bb9acb6cc" ]; then
             echo "::error::APK assinado com uma keystore diferente da fixa esperada — a auto-atualização vai quebrar (App não instalado)."
             exit 1

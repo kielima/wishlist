@@ -62,7 +62,9 @@ captures/
 .cxx/
 
 # Google Services (e.g. APIs or Firebase)
-# google-services.json
+# Escrito pelo CI a partir do secret GOOGLE_SERVICES_JSON (ver
+# .github/workflows/android-build.yml). Nunca versionar.
+app/google-services.json
 
 # Freeline
 freeline.py
