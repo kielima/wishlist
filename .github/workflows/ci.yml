@@ -21,7 +21,10 @@ jobs:
       - run: npm run typecheck
       - run: npm run build
         env:
-          # Chaves do Supabase (anon key é pública/segura com RLS).
-          # Definidas em Settings → Secrets and variables → Actions → Variables.
-          VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_ANON_KEY: ${{ vars.VITE_SUPABASE_ANON_KEY }}
+          # Projeto Supabase consolidado — compartilhado com o app-produtividade,
+          # com as tabelas da wishlist no schema `wishlist`.
+          # A chave publicável é pública por definição: ela vai no bundle que o
+          # GitHub Pages serve, e quem protege os dados é o RLS. Fica escrita aqui
+          # em vez de numa Variable para a config do backend viver junto do código.
+          VITE_SUPABASE_URL: https://robwqxgllzxbxwnjkyic.supabase.co
+          VITE_SUPABASE_ANON_KEY: sb_publishable_ver9EeXJEKDvDGpY7TRACw_sVVY6aoF
