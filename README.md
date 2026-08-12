@@ -14,6 +14,19 @@ PWA pessoal de lista de desejos — instalável, funciona offline.
 Cada desejo tem: nome, descrição, foto, link, preço, prioridade (MoSCoW:
 `must` / `should` / `could` / `wont`), categorias e status (`wanted` / `bought`).
 
+### Backend Supabase (projeto compartilhado)
+
+A wishlist não tem projeto Supabase próprio: usa o mesmo projeto do
+app-produtividade, com as tabelas (`items`, `item_ratings`, `app_version`) num
+schema dedicado `wishlist` em vez do `public`. O schema é definido uma vez no
+`createClient` (`src/supabase.ts`), então os repositórios seguem chamando
+`.from('items')` normalmente.
+
+O runbook da consolidação — incluindo backup, cópia de dados e a configuração
+de *Exposed schemas* que precisa ser feita pelo dashboard — está em
+[`docs/CONSOLIDACAO_SUPABASE.md`](https://github.com/kielima/app-produtividade/blob/main/docs/CONSOLIDACAO_SUPABASE.md)
+no repo do app-produtividade.
+
 ## Rodando localmente
 
 ```bash
