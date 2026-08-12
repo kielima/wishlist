@@ -1,4 +1,13 @@
 -- ============================================================
+-- OBSOLETO — não rode este arquivo.
+--
+-- Ele cria as tabelas no schema `public`, de quando a wishlist tinha projeto
+-- Supabase próprio. Desde a consolidação, o app usa o projeto compartilhado do
+-- app-produtividade e as tabelas vivem no schema `wishlist`. O schema válido é
+-- supabase/migrations/0005_consolidate_into_shared_project.sql.
+--
+-- Mantido só como registro do formato original da base.
+-- ============================================================
 -- Wishlist — configuração do banco no Supabase (Fase 2)
 -- Cole tudo isto no SQL Editor do Supabase e clique em "Run".
 -- ============================================================

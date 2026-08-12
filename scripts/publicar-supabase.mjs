@@ -23,7 +23,9 @@ if (!url || !serviceRoleKey) {
   process.exit(1)
 }
 
-const supabase = createClient(url, serviceRoleKey)
+// Schema `wishlist`: o projeto é compartilhado com o app-produtividade, então
+// `app_version` da wishlist não fica no `public` — ver src/supabase.ts.
+const supabase = createClient(url, serviceRoleKey, { db: { schema: 'wishlist' } })
 const apk = readFileSync(apkPath)
 
 const { error: uploadError } = await supabase.storage
