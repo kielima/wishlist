@@ -52,8 +52,8 @@ jobs:
           # "/wishlist/" (do GitHub Pages) — sem isso os assets dão 404 dentro
           # do WebView do app e a tela fica em branco.
           CAPACITOR_BUILD: '1'
-          VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_ANON_KEY: ${{ vars.VITE_SUPABASE_ANON_KEY }}
+          VITE_SUPABASE_URL: https://robwqxgllzxbxwnjkyic.supabase.co
+          VITE_SUPABASE_ANON_KEY: sb_publishable_ver9EeXJEKDvDGpY7TRACw_sVVY6aoF
           APP_COMMIT: ${{ env.APP_COMMIT }}
       - run: npx cap sync android
       - name: Build debug APK
@@ -88,6 +88,6 @@ jobs:
         if: github.ref == 'refs/heads/main'
         run: node scripts/publicar-supabase.mjs
         env:
-          SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
+          SUPABASE_URL: https://robwqxgllzxbxwnjkyic.supabase.co
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           APP_COMMIT: ${{ env.APP_COMMIT }}
