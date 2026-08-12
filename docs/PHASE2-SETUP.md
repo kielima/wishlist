@@ -46,3 +46,36 @@ Passos para ligar a sincronização. Só precisa fazer uma vez.
 
 A `anon key` é segura de ficar pública porque o RLS garante que cada pessoa só
 acessa os próprios dados.
+
+## 5. Login com Google (obrigatório para o APK)
+
+No APK, o login por e-mail **não se completa**. O código OTP só existe se o
+template de e-mail do projeto Supabase incluir `{{ .Token }}`, e editar
+templates passou a exigir SMTP próprio ou plano Pro. O link sozinho também não
+resolve: WebView e PWA instalado têm contexto de armazenamento separado do
+navegador, então a sessão criada ao tocar no link nunca chega ao app.
+
+Por isso o app usa **Google Sign-In nativo** no Android: o plugin abre o
+seletor de contas do sistema, devolve um `idToken` do Google e ele vai direto
+para `supabase.auth.signInWithIdToken()` — sem e-mail, sem popup, sem redirect.
+É o mesmo desenho do app-produtividade (`src/lib/auth.ts` lá).
+
+### Configuração, uma vez só
+
+1. **Firebase Console** → o **mesmo projeto** usado pelo app-produtividade →
+   *Adicionar app* → Android:
+   - **Nome do pacote:** `br.com.kielima.wishlist`
+   - **SHA-1:** rode o workflow "Build Android APK" e copie a linha
+     `SHA-1 para cadastrar no Firebase:` do log do passo *Verificar assinatura
+     do APK*. O APK é assinado com uma keystore fixa (secret
+     `DEBUG_KEYSTORE_BASE64`), então esse SHA-1 não muda entre builds.
+2. Baixe o `google-services.json` gerado e cole o conteúdo no secret
+   **`GOOGLE_SERVICES_JSON`** do repositório (*Settings → Secrets and variables
+   → Actions*). O arquivo não é versionado; o workflow o escreve no build.
+3. Rode o workflow de novo. Agora o APK sai com o login do Google funcionando.
+
+Usar o **mesmo projeto Firebase** do app-produtividade é o que evita mexer no
+Supabase: o `idToken` do Android é emitido para o *web client ID* do projeto,
+que o provider Google do Supabase já aceita. Num projeto Firebase separado,
+seria preciso cadastrar o novo client ID em *Authentication → Providers →
+Google → Authorized Client IDs*.

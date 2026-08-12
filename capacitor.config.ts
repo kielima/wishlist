@@ -9,6 +9,16 @@ const config: CapacitorConfig = {
   appId: 'br.com.kielima.wishlist',
   appName: 'Wishlist',
   webDir: 'dist',
+  plugins: {
+    // Login com Google nativo no APK. `skipNativeAuth: true` faz o plugin só
+    // abrir o seletor de contas do Android e devolver o idToken do Google —
+    // ele nunca cria sessão no Firebase. Quem recebe esse idToken e mantém a
+    // sessão é o Supabase (`signInWithIdToken`, ver src/auth.ts).
+    FirebaseAuthentication: {
+      skipNativeAuth: true,
+      providers: ['google.com'],
+    },
+  },
 }
 
 export default config
