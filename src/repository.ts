@@ -25,14 +25,20 @@ function newId(): string {
   return crypto.randomUUID()
 }
 
+// Itens gravados antes do campo `dependsOn` existir não o têm no IndexedDB.
+function withDeps(item: WishItem): WishItem {
+  return item.dependsOn ? item : { ...item, dependsOn: [] }
+}
+
 /** Implementação local-first (Fase 1), sobre IndexedDB. */
 class LocalRepository implements WishlistRepository {
   async list(): Promise<WishItem[]> {
-    return db.items.toArray()
+    return (await db.items.toArray()).map(withDeps)
   }
 
   async get(id: string): Promise<WishItem | undefined> {
-    return db.items.get(id)
+    const item = await db.items.get(id)
+    return item ? withDeps(item) : undefined
   }
 
   async create(input: WishItemInput): Promise<WishItem> {

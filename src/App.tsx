@@ -6,6 +6,7 @@ import { useViewport } from './useViewport'
 import { fileToDataUrl, primaryCategory, storeName } from './format'
 import { PRICE_MAX, PRICE_MIN, PRIORITY_META, type SortBy } from './constants'
 import { RatesContext, toBRLCents, useLiveRates } from './currency'
+import { isBlocked } from './dependencies'
 import { resolveClip, takePendingClip, type ClipPrefill } from './clip'
 import { isSupabaseConfigured } from './supabase'
 import { verificarEInstalarAtualizacao } from './nativeUpdate'
@@ -343,6 +344,7 @@ function WishlistApp({ onSignOut }: { onSignOut?: () => void }) {
   async function toggleBought() {
     if (!current) return
     const next = current.status === 'wanted' ? 'bought' : 'wanted'
+    if (next === 'bought' && isBlocked(current, items)) return
     await update(current.id, { status: next })
     flash(next === 'bought' ? 'Conquistado!' : 'De volta à lista')
   }
@@ -421,11 +423,11 @@ function WishlistApp({ onSignOut }: { onSignOut?: () => void }) {
               <span style={{ fontSize: 14, color: '#9a9a9a' }}>Ajuste os filtros ou adicione um novo desejo</span>
             </div>
           ) : layout === 'gallery' ? (
-            <GalleryGrid items={visible} isNarrow={isNarrow} onOpen={openDetail} onToggleFav={toggleFav} />
+            <GalleryGrid items={visible} allItems={items} isNarrow={isNarrow} onOpen={openDetail} onToggleFav={toggleFav} />
           ) : hasSidebar ? (
-            <ItemTable items={visible} width={vp.width} onOpen={openDetail} onToggleFav={toggleFav} />
+            <ItemTable items={visible} allItems={items} width={vp.width} onOpen={openDetail} onToggleFav={toggleFav} />
           ) : (
-            <CompactList items={visible} onOpen={openDetail} onToggleFav={toggleFav} />
+            <CompactList items={visible} allItems={items} onOpen={openDetail} onToggleFav={toggleFav} />
           )}
         </div>
       </div>
@@ -470,9 +472,9 @@ function WishlistApp({ onSignOut }: { onSignOut?: () => void }) {
       )}
 
       {modal === 'detail' && current && (
-        <DetailModal item={current} vp={vp} onClose={closeModal} onEdit={editCurrent} onDelete={deleteCurrent} onToggleBought={toggleBought} onToggleFav={() => toggleFav(current.id)} onAttachReceipt={attachReceipt} onRemoveReceipt={removeReceipt} />
+        <DetailModal item={current} allItems={items} vp={vp} onClose={closeModal} onEdit={editCurrent} onDelete={deleteCurrent} onToggleBought={toggleBought} onToggleFav={() => toggleFav(current.id)} onAttachReceipt={attachReceipt} onRemoveReceipt={removeReceipt} />
       )}
-      {modal === 'edit' && <EditModal item={editingItem} prefill={clipPrefill} vp={vp} categories={allCategories} onAddCategory={handleAddCategory} onManageCategories={() => setCatManagerOpen(true)} onClose={closeModal} onSave={handleSave} />}
+      {modal === 'edit' && <EditModal item={editingItem} prefill={clipPrefill} vp={vp} categories={allCategories} allItems={items} onAddCategory={handleAddCategory} onManageCategories={() => setCatManagerOpen(true)} onClose={closeModal} onSave={handleSave} />}
       {modal === 'duel' && <DuelModal items={duelCandidates} ratings={duelRatings} vp={vp} onClose={closeModal} onApplySession={applyDuelSession} />}
 
       {catManagerOpen && (

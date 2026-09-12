@@ -1,12 +1,15 @@
 import { PRIORITY_META } from '../constants'
 import { formatPrice, initialOf, linkDomain, linkHref, primaryCategory } from '../format'
 import { formatMoney, toBRLCents, useRates } from '../currency'
+import { blockingItems } from '../dependencies'
 import type { Viewport } from '../useViewport'
 import type { WishItem } from '../types'
-import { CheckIcon, CloseIcon, DocIcon, ExternalIcon, HeartIcon, TrashIcon } from './Icons'
+import { CheckIcon, CloseIcon, DocIcon, ExternalIcon, HeartIcon, LockIcon, TrashIcon } from './Icons'
 
 interface Props {
   item: WishItem
+  /** Todos os itens, para checar pré-requisitos de dependência. */
+  allItems: WishItem[]
   vp: Viewport
   onClose: () => void
   onEdit: () => void
@@ -21,12 +24,14 @@ const display = 'var(--font-display)'
 const mono = 'var(--font-mono)'
 const label: React.CSSProperties = { fontFamily: mono, fontSize: 9.5, letterSpacing: '.12em', color: '#a3a3a3', textTransform: 'uppercase' }
 
-export default function DetailModal({ item, vp, onClose, onEdit, onDelete, onToggleBought, onToggleFav, onAttachReceipt, onRemoveReceipt }: Props) {
+export default function DetailModal({ item, allItems, vp, onClose, onEdit, onDelete, onToggleBought, onToggleFav, onAttachReceipt, onRemoveReceipt }: Props) {
   const { isNarrow, width } = vp
   const rates = useRates()
   const bought = item.status === 'bought'
   const pri = PRIORITY_META[item.priority]
   const tick = (i: number) => (i < pri.ticks ? '#0a0a0a' : '#ececec')
+  const blockers = bought ? [] : blockingItems(item, allItems)
+  const locked = blockers.length > 0
 
   const detailWidth = isNarrow ? '100%' : width < 1100 ? 640 : 740
   const visualW = isNarrow ? '100%' : width < 1100 ? 244 : 300
@@ -75,6 +80,20 @@ export default function DetailModal({ item, vp, onClose, onEdit, onDelete, onTog
                 )}
               </div>
             </div>
+
+            {locked && (
+              <div style={{ marginTop: 18, display: 'flex', alignItems: 'flex-start', gap: 10, background: '#fdf6e8', border: '1px solid #f0e0b0', borderRadius: 13, padding: '12px 14px' }}>
+                <div style={{ flexShrink: 0, marginTop: 1 }}>
+                  <LockIcon size={14} />
+                </div>
+                <div>
+                  <div style={{ fontFamily: display, fontSize: 13.5, fontWeight: 600, color: '#8a6d1a' }}>Bloqueado por dependência</div>
+                  <div style={{ fontSize: 12.5, color: '#8a6d1a', marginTop: 3, lineHeight: 1.5 }}>
+                    Compre antes: {blockers.map((b) => b.name).join(', ')}
+                  </div>
+                </div>
+              </div>
+            )}
 
             <div style={{ marginTop: 18 }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
@@ -148,8 +167,14 @@ export default function DetailModal({ item, vp, onClose, onEdit, onDelete, onTog
             <button onClick={onDelete} className="soft-hover" style={{ background: '#f4f4f4', border: 'none', cursor: 'pointer', width: 50, borderRadius: 13, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <TrashIcon />
             </button>
-            <button onClick={onToggleBought} className="press" style={{ flex: 1, border: 'none', cursor: 'pointer', borderRadius: 13, padding: 14, fontFamily: 'var(--font-body)', fontSize: 14.5, fontWeight: 600, background: bought ? '#fff' : '#0a0a0a', color: bought ? '#0a0a0a' : '#fff', borderWidth: 1.5, borderStyle: 'solid', borderColor: bought ? '#e2e2e2' : '#0a0a0a' }}>
-              {bought ? 'Marcar como desejado' : 'Marcar como comprado'}
+            <button
+              onClick={onToggleBought}
+              disabled={locked}
+              className={locked ? undefined : 'press'}
+              title={locked ? `Compre antes: ${blockers.map((b) => b.name).join(', ')}` : undefined}
+              style={{ flex: 1, border: 'none', cursor: locked ? 'not-allowed' : 'pointer', borderRadius: 13, padding: 14, fontFamily: 'var(--font-body)', fontSize: 14.5, fontWeight: 600, background: locked ? '#f4f4f4' : bought ? '#fff' : '#0a0a0a', color: locked ? '#b0b0b0' : bought ? '#0a0a0a' : '#fff', borderWidth: 1.5, borderStyle: 'solid', borderColor: locked ? '#ececec' : bought ? '#e2e2e2' : '#0a0a0a' }}
+            >
+              {locked ? 'Bloqueado' : bought ? 'Marcar como desejado' : 'Marcar como comprado'}
             </button>
           </div>
         </div>
