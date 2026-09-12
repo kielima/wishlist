@@ -2,10 +2,11 @@ import { useState } from 'react'
 import { PRIORITIES, STATUSES } from '../constants'
 import { fileToDataUrl } from '../format'
 import { CURRENCIES, CURRENCY_META } from '../currency'
+import { wouldCreateCycle } from '../dependencies'
 import type { Viewport } from '../useViewport'
 import type { CategoryResult } from '../useCategories'
 import type { Currency, Priority, Status, WishItem, WishItemInput } from '../types'
-import { CameraIcon, CropIcon, GearIcon, PlusSmall } from './Icons'
+import { CameraIcon, CropIcon, GearIcon, LockIcon, PlusSmall } from './Icons'
 import { Overlay } from './DetailModal'
 import CropModal from './CropModal'
 
@@ -16,6 +17,8 @@ interface Props {
   vp: Viewport
   /** Categorias disponíveis para marcar. */
   categories: string[]
+  /** Todos os itens, usados para escolher pré-requisitos e evitar ciclos. */
+  allItems: WishItem[]
   /** Cria uma categoria nova direto no formulário. */
   onAddCategory: (name: string) => CategoryResult
   onManageCategories: () => void
@@ -29,7 +32,7 @@ const mono = 'var(--font-mono)'
 const fieldLabel: React.CSSProperties = { fontFamily: mono, fontSize: 9.5, letterSpacing: '.1em', color: '#a3a3a3', textTransform: 'uppercase', marginBottom: 8 }
 const underline: React.CSSProperties = { width: '100%', border: 'none', borderBottom: '1.5px solid #ececec', background: 'none', padding: '8px 0', color: '#0a0a0a', outline: 'none' }
 
-export default function EditModal({ item, prefill, vp, categories: allCategories, onAddCategory, onManageCategories, onClose, onSave }: Props) {
+export default function EditModal({ item, prefill, vp, categories: allCategories, allItems, onAddCategory, onManageCategories, onClose, onSave }: Props) {
   const { isNarrow, width } = vp
   const [name, setName] = useState(item?.name ?? prefill?.name ?? '')
   const [priceReais, setPriceReais] = useState(
@@ -42,6 +45,7 @@ export default function EditModal({ item, prefill, vp, categories: allCategories
   const [categories, setCategories] = useState<string[]>(item?.categories ?? [])
   const [status, setStatus] = useState<Status>(item?.status ?? 'wanted')
   const [photo, setPhoto] = useState<string | null>(item?.photo ?? prefill?.photo ?? null)
+  const [dependsOn, setDependsOn] = useState<string[]>(item?.dependsOn ?? [])
   const [cropSrc, setCropSrc] = useState<string | null>(null)
   const [error, setError] = useState(false)
   const [addingCat, setAddingCat] = useState(false)
@@ -65,6 +69,13 @@ export default function EditModal({ item, prefill, vp, categories: allCategories
 
   function toggleCat(c: string) {
     setCategories((prev) => (prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c]))
+  }
+
+  // Candidatos a pré-requisito: qualquer outro item, exceto os que fechariam
+  // um ciclo de dependência (ex: A depende de B que já depende de A).
+  const depCandidates = item ? allItems.filter((i) => i.id !== item.id) : allItems
+  function toggleDep(id: string) {
+    setDependsOn((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]))
   }
 
   function submitNewCat() {
@@ -98,6 +109,7 @@ export default function EditModal({ item, prefill, vp, categories: allCategories
       categories,
       photo,
       receipt: item?.receipt ?? null,
+      dependsOn,
     })
   }
 
@@ -297,6 +309,35 @@ export default function EditModal({ item, prefill, vp, categories: allCategories
                 <div style={fieldLabel}>Descrição</div>
                 <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Cor, tamanho, por que você quer…" rows={3} style={{ width: '100%', border: '1.5px solid #ececec', borderRadius: 12, background: 'none', padding: 12, fontFamily: 'var(--font-body)', fontSize: 14.5, lineHeight: 1.5, color: '#0a0a0a', outline: 'none', resize: 'none' }} />
               </div>
+
+              {depCandidates.length > 0 && (
+                <div style={{ marginTop: 22 }}>
+                  <div style={{ ...fieldLabel, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <LockIcon size={11} color="#a3a3a3" />
+                    <span>Depende de (comprar antes)</span>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 220, overflow: 'auto', border: '1.5px solid #ececec', borderRadius: 12, padding: 6 }}>
+                    {depCandidates.map((cand) => {
+                      const checked = dependsOn.includes(cand.id)
+                      const blockedByCycle = !checked && item && wouldCreateCycle(item.id, [...dependsOn, cand.id], allItems)
+                      const disabled = !!blockedByCycle
+                      return (
+                        <label
+                          key={cand.id}
+                          title={disabled ? `Não dá para escolher: ${cand.name} já depende (direta ou indiretamente) deste item` : undefined}
+                          style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 8px', borderRadius: 8, cursor: disabled ? 'not-allowed' : 'pointer', opacity: disabled ? 0.4 : 1 }}
+                        >
+                          <input type="checkbox" checked={checked} disabled={disabled} onChange={() => toggleDep(cand.id)} style={{ width: 15, height: 15, accentColor: '#0a0a0a', flexShrink: 0 }} />
+                          <span style={{ flex: 1, minWidth: 0, fontFamily: 'var(--font-body)', fontSize: 13.5, color: '#1a1a1a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{cand.name}</span>
+                          <span style={{ fontFamily: mono, fontSize: 9, letterSpacing: '.05em', textTransform: 'uppercase', color: cand.status === 'bought' ? '#7fae7a' : '#bdbdbd', flexShrink: 0 }}>
+                            {cand.status === 'bought' ? 'comprado' : 'desejado'}
+                          </span>
+                        </label>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>

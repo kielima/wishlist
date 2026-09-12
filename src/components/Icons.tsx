@@ -161,6 +161,15 @@ export function DuelIcon({ color = 'currentColor' }: { color?: string }) {
   )
 }
 
+export function LockIcon({ size = 12, color = '#b8860b' }: { size?: number; color?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 14 14">
+      <rect x="2.5" y="6.2" width="9" height="6" rx="1.5" stroke={color} strokeWidth="1.3" fill="none" />
+      <path d="M4.3 6.2V4.3a2.7 2.7 0 015.4 0v1.9" stroke={color} strokeWidth="1.3" fill="none" strokeLinecap="round" />
+    </svg>
+  )
+}
+
 export function PlusSmall({ size = 15, color = '#fff' }: { size?: number; color?: string }) {
   return (
     <svg width={size} height={size} viewBox="0 0 15 15">

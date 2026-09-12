@@ -16,6 +16,7 @@ interface Row {
   categories: string[] | null
   photo: string | null
   receipt: Receipt | null
+  depends_on: string[] | null
   created_at: string
   updated_at: string
 }
@@ -34,6 +35,7 @@ function fromRow(r: Row): WishItem {
     categories: r.categories ?? [],
     photo: r.photo,
     receipt: r.receipt,
+    dependsOn: r.depends_on ?? [],
     createdAt: r.created_at,
     updatedAt: r.updated_at,
   }
@@ -53,6 +55,7 @@ function toRow(patch: Partial<WishItemInput>): Record<string, unknown> {
   if (patch.categories !== undefined) row.categories = patch.categories
   if (patch.photo !== undefined) row.photo = patch.photo
   if (patch.receipt !== undefined) row.receipt = patch.receipt
+  if (patch.dependsOn !== undefined) row.depends_on = patch.dependsOn
   return row
 }
 

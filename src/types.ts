@@ -43,6 +43,8 @@ export interface WishItem {
   photo: string | null
   /** Nota fiscal arquivada (só faz sentido para itens comprados). */
   receipt: Receipt | null
+  /** IDs de itens que precisam ser comprados antes deste (ex: ferramenta antes do projeto DIY). */
+  dependsOn: string[]
   /** Timestamps ISO 8601 — úteis para ordenação e merge na sync futura. */
   createdAt: string
   updatedAt: string

@@ -1,8 +1,9 @@
 import { PRIORITY_META } from '../constants'
 import { formatPrice, initialOf, primaryCategory } from '../format'
 import { toBRLCents, useRates } from '../currency'
+import { blockingItems } from '../dependencies'
 import type { WishItem } from '../types'
-import { CheckIcon, HeartIcon } from './Icons'
+import { CheckIcon, HeartIcon, LockIcon } from './Icons'
 import PriorityTicks from './PriorityTicks'
 
 const display = 'var(--font-display)'
@@ -25,20 +26,30 @@ function FavButton({ item, onToggle, size = 30, heart = 17, hover = true }: { it
   )
 }
 
-function Thumb({ item, size, font, radius }: { item: WishItem; size: number; font: number; radius: number }) {
+/** Texto do tooltip/badge de bloqueio, listando os pré-requisitos pendentes. */
+function lockTitle(blockers: WishItem[]) {
+  return `Bloqueado até comprar: ${blockers.map((b) => b.name).join(', ')}`
+}
+
+function Thumb({ item, size, font, radius, locked }: { item: WishItem; size: number; font: number; radius: number; locked?: boolean }) {
   const bought = item.status === 'bought'
   return (
     <div style={{ position: 'relative', width: size, height: size, borderRadius: radius, background: '#f4f4f4', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
       {item.photo ? (
-        <img src={item.photo} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: bought ? 0.5 : 1 }} />
+        <img src={item.photo} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: bought ? 0.5 : locked ? 0.7 : 1 }} />
       ) : (
-        <span style={{ fontFamily: display, fontSize: font, fontWeight: 600, color: '#d6d6d6', opacity: bought ? 0.4 : 1 }}>{initialOf(item.name)}</span>
+        <span style={{ fontFamily: display, fontSize: font, fontWeight: 600, color: '#d6d6d6', opacity: bought ? 0.4 : locked ? 0.7 : 1 }}>{initialOf(item.name)}</span>
       )}
       {bought && (
         <div style={{ position: 'absolute', inset: 0, background: 'rgba(255,255,255,.5)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <div style={{ width: 20, height: 20, borderRadius: '50%', background: '#0a0a0a', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <CheckIcon size={10} />
           </div>
+        </div>
+      )}
+      {!bought && locked && (
+        <div style={{ position: 'absolute', bottom: 3, right: 3, width: 17, height: 17, borderRadius: '50%', background: '#fff', boxShadow: '0 1px 4px rgba(0,0,0,.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <LockIcon size={9} />
         </div>
       )}
     </div>
@@ -54,7 +65,7 @@ function nf(item: WishItem) {
 }
 
 /** Tabela densa (desktop, modo Lista). */
-export function ItemTable({ items, width, onOpen, onToggleFav }: { items: WishItem[]; width: number; onOpen: (id: string) => void; onToggleFav: (id: string) => void }) {
+export function ItemTable({ items, allItems, width, onOpen, onToggleFav }: { items: WishItem[]; allItems: WishItem[]; width: number; onOpen: (id: string) => void; onToggleFav: (id: string) => void }) {
   const rates = useRates()
   const colTemplate =
     width < 980
@@ -73,6 +84,8 @@ export function ItemTable({ items, width, onOpen, onToggleFav }: { items: WishIt
       {items.map((it, idx) => {
         const bought = it.status === 'bought'
         const r = nf(it)
+        const blockers = bought ? [] : blockingItems(it, allItems)
+        const locked = blockers.length > 0
         return (
           <div
             key={it.id}
@@ -81,13 +94,19 @@ export function ItemTable({ items, width, onOpen, onToggleFav }: { items: WishIt
             style={{ display: 'grid', gridTemplateColumns: colTemplate, gap: 18, alignItems: 'center', padding: '13px 14px', borderBottom: '1px solid #f5f5f5', cursor: 'pointer', borderRadius: 10, animation: 'rowIn .4s both', animationDelay: `${idx * 0.03}s` }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: 13, minWidth: 0 }}>
-              <Thumb item={it} size={44} font={20} radius={11} />
+              <Thumb item={it} size={44} font={20} radius={11} locked={locked} />
               <div style={{ minWidth: 0 }}>
                 <div style={{ fontFamily: display, fontSize: 14.5, fontWeight: 600, color: bought ? '#b0b0b0' : '#0a0a0a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', textDecoration: bought ? 'line-through' : 'none' }}>{it.name}</div>
                 {bought && (
                   <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 3 }}>
                     <span style={{ width: 5, height: 5, borderRadius: '50%', background: r.dot }} />
                     <span style={{ fontFamily: mono, fontSize: 8.5, letterSpacing: '.04em', textTransform: 'uppercase', color: r.color }}>{r.text}</span>
+                  </div>
+                )}
+                {locked && (
+                  <div title={lockTitle(blockers)} style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 3 }}>
+                    <LockIcon size={8} />
+                    <span style={{ fontFamily: mono, fontSize: 8.5, letterSpacing: '.04em', textTransform: 'uppercase', color: '#b8860b' }}>Bloqueado</span>
                   </div>
                 )}
               </div>
@@ -109,13 +128,15 @@ export function ItemTable({ items, width, onOpen, onToggleFav }: { items: WishIt
 }
 
 /** Lista compacta (mobile, modo Lista). */
-export function CompactList({ items, onOpen, onToggleFav }: { items: WishItem[]; onOpen: (id: string) => void; onToggleFav: (id: string) => void }) {
+export function CompactList({ items, allItems, onOpen, onToggleFav }: { items: WishItem[]; allItems: WishItem[]; onOpen: (id: string) => void; onToggleFav: (id: string) => void }) {
   const rates = useRates()
   return (
     <div style={{ padding: '6px 0 32px' }}>
       {items.map((it, idx) => {
         const bought = it.status === 'bought'
         const r = nf(it)
+        const blockers = bought ? [] : blockingItems(it, allItems)
+        const locked = blockers.length > 0
         return (
           <div
             key={it.id}
@@ -123,7 +144,7 @@ export function CompactList({ items, onOpen, onToggleFav }: { items: WishItem[];
             className="row-hover"
             style={{ display: 'flex', alignItems: 'center', gap: 13, padding: '13px 18px', borderBottom: '1px solid #f3f3f3', cursor: 'pointer', animation: 'rowIn .4s both', animationDelay: `${idx * 0.03}s` }}
           >
-            <Thumb item={it} size={46} font={21} radius={12} />
+            <Thumb item={it} size={46} font={21} radius={12} locked={locked} />
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontFamily: display, fontSize: 15, fontWeight: 600, color: bought ? '#b0b0b0' : '#0a0a0a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', textDecoration: bought ? 'line-through' : 'none' }}>{it.name}</div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 3 }}>
@@ -132,6 +153,12 @@ export function CompactList({ items, onOpen, onToggleFav }: { items: WishItem[];
                   <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontFamily: mono, fontSize: 8.5, textTransform: 'uppercase', color: r.color }}>
                     <span style={{ width: 5, height: 5, borderRadius: '50%', background: r.dot }} />
                     {r.text}
+                  </span>
+                )}
+                {locked && (
+                  <span title={lockTitle(blockers)} style={{ display: 'flex', alignItems: 'center', gap: 4, fontFamily: mono, fontSize: 8.5, textTransform: 'uppercase', color: '#b8860b' }}>
+                    <LockIcon size={8} />
+                    Bloqueado
                   </span>
                 )}
               </div>
@@ -152,19 +179,21 @@ export function CompactList({ items, onOpen, onToggleFav }: { items: WishItem[];
 }
 
 /** Grade de galeria (qualquer largura). */
-export function GalleryGrid({ items, isNarrow, onOpen, onToggleFav }: { items: WishItem[]; isNarrow: boolean; onOpen: (id: string) => void; onToggleFav: (id: string) => void }) {
+export function GalleryGrid({ items, allItems, isNarrow, onOpen, onToggleFav }: { items: WishItem[]; allItems: WishItem[]; isNarrow: boolean; onOpen: (id: string) => void; onToggleFav: (id: string) => void }) {
   const rates = useRates()
   return (
     <div style={{ display: 'grid', gridTemplateColumns: `repeat(auto-fill, minmax(${isNarrow ? '150px' : '190px'}, 1fr))`, gap: 20, padding: '22px 28px 40px' }}>
       {items.map((it, idx) => {
         const bought = it.status === 'bought'
+        const blockers = bought ? [] : blockingItems(it, allItems)
+        const locked = blockers.length > 0
         return (
           <div key={it.id} onClick={() => onOpen(it.id)} className="gal-hover" style={{ cursor: 'pointer', animation: 'rowIn .42s both', animationDelay: `${idx * 0.03}s` }}>
             <div style={{ position: 'relative', width: '100%', aspectRatio: '1', borderRadius: 18, background: '#f4f4f4', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
               {it.photo ? (
-                <img src={it.photo} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: bought ? 0.5 : 1 }} />
+                <img src={it.photo} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: bought ? 0.5 : locked ? 0.7 : 1 }} />
               ) : (
-                <span style={{ fontFamily: display, fontSize: 52, fontWeight: 600, color: '#dadada', opacity: bought ? 0.4 : 1 }}>{initialOf(it.name)}</span>
+                <span style={{ fontFamily: display, fontSize: 52, fontWeight: 600, color: '#dadada', opacity: bought ? 0.4 : locked ? 0.7 : 1 }}>{initialOf(it.name)}</span>
               )}
               <span style={{ position: 'absolute', left: 12, bottom: 11, fontFamily: mono, fontSize: 8, letterSpacing: '.05em', color: '#b0b0b0', textTransform: 'uppercase' }}>{primaryCategory(it)}</span>
               <button
@@ -179,6 +208,12 @@ export function GalleryGrid({ items, isNarrow, onOpen, onToggleFav }: { items: W
                 <div style={{ position: 'absolute', top: 11, right: 11, display: 'flex', alignItems: 'center', gap: 5, background: '#0a0a0a', borderRadius: 999, padding: '4px 9px 4px 7px' }}>
                   <CheckIcon size={10} stroke={1.8} />
                   <span style={{ fontFamily: mono, fontSize: 7.5, letterSpacing: '.04em', color: '#fff', textTransform: 'uppercase' }}>{it.receipt ? 'NF' : 'S/ NF'}</span>
+                </div>
+              )}
+              {locked && (
+                <div title={lockTitle(blockers)} style={{ position: 'absolute', top: 11, right: 11, display: 'flex', alignItems: 'center', gap: 5, background: '#fff', borderRadius: 999, padding: '4px 9px 4px 7px', boxShadow: '0 1px 5px rgba(0,0,0,.14)' }}>
+                  <LockIcon size={9} />
+                  <span style={{ fontFamily: mono, fontSize: 7.5, letterSpacing: '.04em', color: '#b8860b', textTransform: 'uppercase' }}>Bloqueado</span>
                 </div>
               )}
             </div>
