@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { PRIORITIES, STATUSES } from '../constants'
-import { fileToDataUrl } from '../format'
+import { fileToDataUrl, initialOf } from '../format'
 import { CURRENCIES, CURRENCY_META } from '../currency'
 import { wouldCreateCycle } from '../dependencies'
 import type { Viewport } from '../useViewport'
@@ -53,7 +53,9 @@ export default function EditModal({ item, prefill, vp, categories: allCategories
   const [catError, setCatError] = useState('')
 
   const editWidth = isNarrow ? '100%' : width < 920 ? 560 : 720
-  const editGrid = width < 720 ? '1fr' : '200px 1fr'
+  // Mesmo limiar de EditWidth (isNarrow), para não abrir uma janela onde o modal
+  // já é full-width mas o grid ainda tenta 2 colunas — isso forçava scroll horizontal.
+  const editGrid = isNarrow ? '1fr' : '200px 1fr'
 
   // Completar via extensão: ao reabrir um item já existente (mesmo link) com
   // dados novos da extensão, sugere o que a loja bloqueou no celular — sem
@@ -128,10 +130,10 @@ export default function EditModal({ item, prefill, vp, categories: allCategories
           </div>
         </div>
 
-        <div data-scroll style={{ flex: 1, overflow: 'auto', padding: '22px 24px 28px' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: editGrid, gap: 22 }}>
+        <div data-scroll style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', padding: '22px 24px 28px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: editGrid, gap: 22, minWidth: 0 }}>
             {/* coluna esquerda: foto + status */}
-            <div>
+            <div style={{ minWidth: 0 }}>
               <label style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%', aspectRatio: '1.5', borderRadius: 15, background: photo ? '#000' : '#fafafa', border: photo ? 'none' : '1.5px dashed #dcdcdc', cursor: 'pointer', overflow: 'hidden' }}>
                 {photo ? (
                   <img src={photo} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
@@ -206,7 +208,7 @@ export default function EditModal({ item, prefill, vp, categories: allCategories
             </div>
 
             {/* coluna direita: campos */}
-            <div>
+            <div style={{ minWidth: 0 }}>
               <div style={fieldLabel}>Nome</div>
               <input value={name} onChange={(e) => { setName(e.target.value); if (error) setError(false) }} placeholder="O que você deseja?" style={{ ...underline, fontFamily: display, fontSize: 18, fontWeight: 600, borderBottomColor: error ? '#e2553d' : '#ececec' }} />
               {error && <div style={{ color: '#e2553d', fontSize: 12, marginTop: 6 }}>Dê um nome ao desejo</div>}
@@ -328,6 +330,13 @@ export default function EditModal({ item, prefill, vp, categories: allCategories
                           style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 8px', borderRadius: 8, cursor: disabled ? 'not-allowed' : 'pointer', opacity: disabled ? 0.4 : 1 }}
                         >
                           <input type="checkbox" checked={checked} disabled={disabled} onChange={() => toggleDep(cand.id)} style={{ width: 15, height: 15, accentColor: '#0a0a0a', flexShrink: 0 }} />
+                          <div style={{ width: 28, height: 28, borderRadius: 8, background: '#f4f4f4', flexShrink: 0, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            {cand.photo ? (
+                              <img src={cand.photo} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            ) : (
+                              <span style={{ fontFamily: display, fontSize: 12, fontWeight: 600, color: '#d6d6d6' }}>{initialOf(cand.name)}</span>
+                            )}
+                          </div>
                           <span style={{ flex: 1, minWidth: 0, fontFamily: 'var(--font-body)', fontSize: 13.5, color: '#1a1a1a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{cand.name}</span>
                           <span style={{ fontFamily: mono, fontSize: 9, letterSpacing: '.05em', textTransform: 'uppercase', color: cand.status === 'bought' ? '#7fae7a' : '#bdbdbd', flexShrink: 0 }}>
                             {cand.status === 'bought' ? 'comprado' : 'desejado'}
