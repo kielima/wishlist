@@ -328,12 +328,20 @@ function WishlistApp({ onSignOut }: { onSignOut?: () => void }) {
   }
 
   async function handleSave(input: WishItemInput) {
-    if (editingItem) {
-      await update(editingItem.id, input)
-      setSelectedId(editingItem.id)
-    } else {
-      const created = await create(input)
-      setSelectedId(created.id)
+    try {
+      if (editingItem) {
+        await update(editingItem.id, input)
+        setSelectedId(editingItem.id)
+      } else {
+        const created = await create(input)
+        setSelectedId(created.id)
+      }
+    } catch (e) {
+      // Mantém o modal aberto com os dados preenchidos: sem isso, uma falha
+      // de rede/sessão era engolida em silêncio e parecia que "salvar" não fazia nada.
+      console.error('Falha ao salvar item', e)
+      flash('Erro ao salvar: ' + (e instanceof Error ? e.message : 'tente novamente'))
+      return
     }
     setEditingItem(undefined)
     setClipPrefill(undefined)
