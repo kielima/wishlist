@@ -24,7 +24,15 @@ jobs:
         with:
           distribution: temurin
           java-version: '21'
+      # `packages` fixado em platform-tools: o default antigo da ação pedia
+      # também o pacote legado "tools", que a Google removeu do repositório
+      # do SDK (passou a falhar com "Failed to find package 'tools'" — ver
+      # https://github.com/android-actions/setup-android#tools-sdk). Sem
+      # isso o build quebrava em todo push na main, e a atualização in-app
+      # nunca saía do ar (o step de publicar roda só depois deste).
       - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
       - name: Carimbar commit da build
         run: echo "APP_COMMIT=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
       # A keystore de debug padrão do Android Gradle Plugin é gerada na hora,
