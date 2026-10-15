@@ -110,12 +110,19 @@ export async function scrapeViaNativeBrowser(url: string, timeoutMs = 20000): Pr
     // Livre) costumam passar por uma ou mais páginas de redirect antes do
     // produto — cada navegação dispara seu próprio browserPageLoaded. Um
     // resultado vazio (scrape rodou numa página intermediária, sem JSON-LD
-    // nem og:image) não finaliza a espera: só uma página com nome/imagem de
+    // nem og:image) não finaliza a espera: só uma página com imagem de
     // verdade conta, senão ficamos presos na casca do redirect e nunca
     // chegamos a injetar o script na página final.
+    //
+    // Exige imagem, não só nome: o `name` do scraper cai de volta pro
+    // document.title quando não há og:title/JSON-LD — e páginas de
+    // verificação anti-bot (ex.: o interstitial "account-verification" do
+    // Mercado Livre) têm um <title> genérico ("Mercado Libre") mas nenhuma
+    // imagem de produto. Um nome sozinho não distingue a página de bloqueio
+    // da página real; presença de imagem é o sinal confiável.
     const msgHandle = InAppBrowser.addListener('messageFromWebview', (event) => {
       const result = (event.detail as NativeScrapeResult) ?? null
-      if (result && (result.name || result.images?.length)) finish(result)
+      if (result?.images?.length) finish(result)
     })
 
     const loadHandle = InAppBrowser.addListener('browserPageLoaded', (event) => {

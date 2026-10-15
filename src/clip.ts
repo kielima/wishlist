@@ -136,8 +136,11 @@ export async function resolveClip(raw: RawClip): Promise<ClipPrefill> {
     const { data, error } = await supabase.functions.invoke('clip', { body: { url } })
     if (error || !data) return { name: raw.title, link: url }
     const photos = dedupe([...(Array.isArray(data.images) ? data.images : []), data.image])
+    // Sem nenhuma foto, o `name` vindo do servidor não é confiável — pode ser
+    // só o <title> de uma página de verificação anti-bot (ex.: Mercado
+    // Livre), não o nome do produto. Nesse caso usa o título do compartilhar.
     return {
-      name: data.name || raw.title,
+      name: (photos.length ? data.name : null) || raw.title,
       priceReais: data.price != null ? String(Math.round(Number(data.price))) : undefined,
       link: data.link || url,
       photo: photos[0],
