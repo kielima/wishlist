@@ -21,6 +21,8 @@ interface Props {
   allStores: string[]
   selectedStores: string[]
   toggleStore: (s: string) => void
+  showBlocked: boolean
+  setShowBlocked: (v: boolean) => void
   onClear: () => void
   onManageCategories: () => void
   resultCount: number
@@ -49,6 +51,8 @@ export default function FilterDrawer({
   allStores,
   selectedStores,
   toggleStore,
+  showBlocked,
+  setShowBlocked,
   onClear,
   onManageCategories,
   resultCount,
@@ -162,6 +166,15 @@ export default function FilterDrawer({
             </button>
           ))}
         </div>
+
+        <div style={{ ...label, margin: '24px 0 11px' }}>Bloqueados</div>
+        <button
+          onClick={() => setShowBlocked(!showBlocked)}
+          className="press"
+          style={{ ...optBtn(showBlocked), width: '100%' }}
+        >
+          Mostrar itens bloqueados
+        </button>
 
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '24px 0 14px' }}>
           <span style={label}>Faixa de preço</span>
