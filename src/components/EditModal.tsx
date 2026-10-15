@@ -3,6 +3,8 @@ import { PRIORITIES, STATUSES } from '../constants'
 import { fileToDataUrl, initialOf } from '../format'
 import { CURRENCIES, CURRENCY_META } from '../currency'
 import { wouldCreateCycle } from '../dependencies'
+import { extractProductFromImage, splitDataUrl } from '../aiExtractProduct'
+import { isSupabaseConfigured } from '../supabase'
 import type { Viewport } from '../useViewport'
 import type { CategoryResult } from '../useCategories'
 import type { Currency, Priority, Status, WishItem, WishItemInput } from '../types'
@@ -47,6 +49,7 @@ export default function EditModal({ item, prefill, vp, categories: allCategories
   const [photo, setPhoto] = useState<string | null>(item?.photo ?? prefill?.photo ?? null)
   const [dependsOn, setDependsOn] = useState<string[]>(item?.dependsOn ?? [])
   const [cropSrc, setCropSrc] = useState<string | null>(null)
+  const [extractingPhoto, setExtractingPhoto] = useState(false)
   const [error, setError] = useState(false)
   const [addingCat, setAddingCat] = useState(false)
   const [newCat, setNewCat] = useState('')
@@ -78,6 +81,27 @@ export default function EditModal({ item, prefill, vp, categories: allCategories
   const depCandidates = item ? allItems.filter((i) => i.id !== item.id) : allItems
   function toggleDep(id: string) {
     setDependsOn((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]))
+  }
+
+  // Lê nome e preço direto da foto via IA — só quando os campos ainda estão
+  // vazios, pra nunca sobrescrever o que o usuário já preencheu (ex: ao
+  // trocar a foto de um item que já tem nome e preço).
+  async function confirmPhoto(cropped: string) {
+    setPhoto(cropped)
+    setCropSrc(null)
+    if (!isSupabaseConfigured || name.trim() || priceReais) return
+    const parts = splitDataUrl(cropped)
+    if (!parts) return
+    setExtractingPhoto(true)
+    try {
+      const result = await extractProductFromImage({ imageBase64: parts.base64, mimeType: parts.mimeType })
+      if (result.name && !name.trim()) setName(result.name)
+      if (result.priceReais && !priceReais) setPriceReais(result.priceReais)
+    } catch (e) {
+      console.error('Falha ao extrair dados da foto', e)
+    } finally {
+      setExtractingPhoto(false)
+    }
   }
 
   function submitNewCat() {
@@ -210,7 +234,7 @@ export default function EditModal({ item, prefill, vp, categories: allCategories
             {/* coluna direita: campos */}
             <div style={{ minWidth: 0 }}>
               <div style={fieldLabel}>Nome</div>
-              <input value={name} onChange={(e) => { setName(e.target.value); if (error) setError(false) }} placeholder="O que você deseja?" style={{ ...underline, fontFamily: display, fontSize: 18, fontWeight: 600, borderBottomColor: error ? '#e2553d' : '#ececec' }} />
+              <input value={name} onChange={(e) => { setName(e.target.value); if (error) setError(false) }} placeholder={extractingPhoto ? 'Lendo nome e preço da foto…' : 'O que você deseja?'} style={{ ...underline, fontFamily: display, fontSize: 18, fontWeight: 600, borderBottomColor: error ? '#e2553d' : '#ececec' }} />
               {error && <div style={{ color: '#e2553d', fontSize: 12, marginTop: 6 }}>Dê um nome ao desejo</div>}
               {suggestName && (
                 <button type="button" onClick={() => setName(suggestName)} className="soft-hover" style={{ display: 'block', marginTop: 6, background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', padding: 0, fontFamily: 'var(--font-body)', fontSize: 12, color: '#6b6b6b' }}>
@@ -358,7 +382,7 @@ export default function EditModal({ item, prefill, vp, categories: allCategories
         src={cropSrc}
         aspect={1}
         onCancel={() => setCropSrc(null)}
-        onConfirm={(cropped) => { setPhoto(cropped); setCropSrc(null) }}
+        onConfirm={confirmPhoto}
       />
     )}
     </>
