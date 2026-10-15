@@ -354,17 +354,24 @@ Deno.serve(async (req: Request) => {
     // O AliExpress às vezes responde com a casca vazia (sem nome nem imagem)
     // mesmo após a dança de cookies. Quando isso acontece, repetir a busca
     // com um cookie jar novo normalmente resolve — tentamos até 3 vezes.
+    //
+    // O critério de sucesso exige IMAGEM, não só nome: `name` cai de volta
+    // pro <title> da página quando não há og:title/JSON-LD, e páginas de
+    // verificação anti-bot (ex.: o interstitial "account-verification" do
+    // Mercado Livre) têm um título genérico ("Mercado Libre") mas nenhuma
+    // imagem de produto — um nome sozinho não distingue a página de bloqueio
+    // da página real.
     let result = { name: '', image: null as string | null, images: [] as string[], price: null as number | null, currency: null as string | null }
     for (let attempt = 0; attempt < 3; attempt++) {
       const html = await fetchWithCookies(url, primaryUA)
       result = extract(html)
-      if (result.name || result.image) break // conseguiu algo útil
+      if (result.image) break // conseguiu algo útil
     }
 
     // Último recurso: se nada foi extraído e ainda não tentamos como crawler,
     // repete uma vez com o UA de crawler. Isso destrava o SSR de lojas que
     // escondem os metadados de clientes comuns sem prejudicar as demais.
-    if (!result.name && !result.image && primaryUA !== CRAWLER_UA) {
+    if (!result.image && primaryUA !== CRAWLER_UA) {
       const html = await fetchWithCookies(url, CRAWLER_UA)
       result = extract(html)
     }
