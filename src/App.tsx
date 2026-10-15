@@ -129,7 +129,9 @@ function WishlistApp({ onSignOut }: { onSignOut?: () => void }) {
       return (
         (categories.length === 0 || categories.includes(primaryCategory(i))) &&
         (stores.length === 0 || stores.includes(itemStore.get(i.id) ?? 'Outros')) &&
-        (priorities.length === 0 || priorities.includes(i.priority)) &&
+        // Sem filtro de prioridade ativo, "Won't" fica oculto por padrão — só
+        // aparece quando o usuário escolhe explicitamente esse filtro.
+        (priorities.length === 0 ? i.priority !== 'wont' : priorities.includes(i.priority)) &&
         reais >= priceMin &&
         reais <= upper &&
         (!q || i.name.toLowerCase().includes(q) || primaryCategory(i).toLowerCase().includes(q))
