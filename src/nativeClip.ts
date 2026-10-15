@@ -87,7 +87,7 @@ function scrapeProductInPage(): void {
  * Assume no máximo uma chamada em andamento por vez (o app não dispara scrapes
  * concorrentes), então não filtra eventos por id de webview.
  */
-export async function scrapeViaNativeBrowser(url: string, timeoutMs = 15000): Promise<NativeScrapeResult | null> {
+export async function scrapeViaNativeBrowser(url: string, timeoutMs = 20000): Promise<NativeScrapeResult | null> {
   if (!isNativePlatform()) return null
 
   return new Promise((resolve) => {
@@ -106,15 +106,26 @@ export async function scrapeViaNativeBrowser(url: string, timeoutMs = 15000): Pr
 
     const timer = setTimeout(() => finish(null), timeoutMs)
 
+    // Links de compartilhar (ex.: os "sec.mercadolivre.com.br" do Mercado
+    // Livre) costumam passar por uma ou mais páginas de redirect antes do
+    // produto — cada navegação dispara seu próprio browserPageLoaded. Um
+    // resultado vazio (scrape rodou numa página intermediária, sem JSON-LD
+    // nem og:image) não finaliza a espera: só uma página com nome/imagem de
+    // verdade conta, senão ficamos presos na casca do redirect e nunca
+    // chegamos a injetar o script na página final.
     const msgHandle = InAppBrowser.addListener('messageFromWebview', (event) => {
-      finish((event.detail as NativeScrapeResult) ?? null)
+      const result = (event.detail as NativeScrapeResult) ?? null
+      if (result && (result.name || result.images?.length)) finish(result)
     })
 
     const loadHandle = InAppBrowser.addListener('browserPageLoaded', (event) => {
+      // Falha ao injetar (ex.: a página já navegou de novo nesse meio-tempo)
+      // não é fatal — só significa que esse load específico não rendeu nada;
+      // o próximo browserPageLoaded tenta de novo.
       void InAppBrowser.executeScript({
         id: event.id,
         code: `(${scrapeProductInPage.toString()})()`,
-      }).catch(() => finish(null))
+      }).catch(() => {})
     })
 
     // FAKE_VISIBLE (em vez do AWARE padrão) faz o WebView reportar dimensões
