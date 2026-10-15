@@ -34,6 +34,18 @@ type Modal = 'detail' | 'edit' | 'duel' | null
 
 const HEADINGS: Record<Filter, string> = { desejados: 'Desejados', concluidos: 'Concluídos', favoritos: 'Favoritos' }
 
+// O cliente do Supabase não lança uma Error de verdade: por padrão (sem
+// .throwOnError()) o `error` de `{ data, error }` é só o JSON cru da
+// resposta ({ message, details, hint, code }), então `e instanceof Error`
+// nunca bate e a mensagem real do Postgres/PostgREST ficava escondida.
+function errorMessage(e: unknown): string {
+  if (e instanceof Error) return e.message
+  if (e && typeof e === 'object' && 'message' in e && typeof (e as { message: unknown }).message === 'string') {
+    return (e as { message: string }).message
+  }
+  return 'tente novamente'
+}
+
 function WishlistApp({ onSignOut }: { onSignOut?: () => void }) {
   const { items, loading: itemsLoading, create, update, remove } = useWishlist()
   const { ratings: duelRatings, applySession: applyDuelSession } = useDuelRatings()
@@ -340,7 +352,7 @@ function WishlistApp({ onSignOut }: { onSignOut?: () => void }) {
       // Mantém o modal aberto com os dados preenchidos: sem isso, uma falha
       // de rede/sessão era engolida em silêncio e parecia que "salvar" não fazia nada.
       console.error('Falha ao salvar item', e)
-      flash('Erro ao salvar: ' + (e instanceof Error ? e.message : 'tente novamente'))
+      flash('Erro ao salvar: ' + errorMessage(e))
       return
     }
     setEditingItem(undefined)
