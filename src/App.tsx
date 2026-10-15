@@ -61,6 +61,9 @@ function WishlistApp({ onSignOut }: { onSignOut?: () => void }) {
   const [priorities, setPriorities] = useState<Priority[]>([])
   const [priceMin, setPriceMin] = useState(PRICE_MIN)
   const [priceMax, setPriceMax] = useState(PRICE_MAX)
+  // Itens bloqueados (com pré-requisito ainda não comprado) ficam ocultos por
+  // padrão, igual aos "Won't" — só aparecem quando esse filtro é ligado.
+  const [showBlocked, setShowBlocked] = useState(false)
   const [layout, setLayout] = useState<Layout>('editorial')
   const [query, setQuery] = useState('')
   const [panelOpen, setPanelOpen] = useState(false)
@@ -86,7 +89,7 @@ function WishlistApp({ onSignOut }: { onSignOut?: () => void }) {
     .reduce((s, i) => s + toBRLCents(i.priceCents, i.currency, rates), 0)
 
   const priceActive = priceMin > PRICE_MIN || priceMax < PRICE_MAX
-  const filterCount = priorities.length + categories.length + stores.length + (priceActive ? 1 : 0)
+  const filterCount = priorities.length + categories.length + stores.length + (priceActive ? 1 : 0) + (showBlocked ? 1 : 0)
 
   // Loja de cada item, agrupada por link. Lojas com menos de 2 itens caem em
   // "Outros" — o objetivo é juntar itens da mesma loja para economizar frete.
@@ -132,12 +135,14 @@ function WishlistApp({ onSignOut }: { onSignOut?: () => void }) {
         // Sem filtro de prioridade ativo, "Won't" fica oculto por padrão — só
         // aparece quando o usuário escolhe explicitamente esse filtro.
         (priorities.length === 0 ? i.priority !== 'wont' : priorities.includes(i.priority)) &&
+        // Mesma ideia para itens bloqueados (pré-requisito ainda não comprado).
+        (showBlocked || !isBlocked(i, items)) &&
         reais >= priceMin &&
         reais <= upper &&
         (!q || i.name.toLowerCase().includes(q) || primaryCategory(i).toLowerCase().includes(q))
       )
     }
-  }, [categories, stores, itemStore, priorities, priceMin, priceMax, query, rates])
+  }, [categories, stores, itemStore, priorities, showBlocked, items, priceMin, priceMax, query, rates])
 
   // Itens elegíveis para duelo: só "desejados", restritos aos filtros ativos
   // (preço, categoria, loja, prioridade, busca) — não à aba de status atual.
@@ -331,6 +336,7 @@ function WishlistApp({ onSignOut }: { onSignOut?: () => void }) {
     setPriorities([])
     setCategories([])
     setStores([])
+    setShowBlocked(false)
     resetPrice()
   }
 
@@ -404,6 +410,7 @@ function WishlistApp({ onSignOut }: { onSignOut?: () => void }) {
     ...categories.map((c) => ({ key: `cat:${c}`, label: c, onRemove: () => toggleCategory(c) })),
     ...stores.map((s) => ({ key: `store:${s}`, label: s, onRemove: () => toggleStore(s) })),
     ...(priceActive ? [{ key: 'price', label: priceLabel, onRemove: resetPrice }] : []),
+    ...(showBlocked ? [{ key: 'blocked', label: 'Bloqueados', onRemove: () => setShowBlocked(false) }] : []),
   ]
 
   return (
@@ -480,6 +487,8 @@ function WishlistApp({ onSignOut }: { onSignOut?: () => void }) {
         allStores={allStores}
         selectedStores={stores}
         toggleStore={toggleStore}
+        showBlocked={showBlocked}
+        setShowBlocked={setShowBlocked}
         onClear={clearFilters}
         onManageCategories={() => setCatManagerOpen(true)}
         resultCount={visible.length}
