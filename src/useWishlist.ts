@@ -19,31 +19,26 @@ export function useWishlist() {
     refresh().finally(() => setLoading(false))
   }, [refresh])
 
-  const create = useCallback(
-    async (input: WishItemInput) => {
-      const item = await repository.create(input)
-      await refresh()
-      return item
-    },
-    [refresh],
-  )
+  // create/update/remove aplicam o resultado direto no estado local em vez de
+  // re-buscar a lista inteira a cada gravação — cada item carrega a foto em
+  // base64, então um refresh completo (dezenas de itens) deixava até uma
+  // edição pequena visivelmente lenta para economizar uma única chamada.
+  const create = useCallback(async (input: WishItemInput) => {
+    const item = await repository.create(input)
+    setItems((prev) => [item, ...prev])
+    return item
+  }, [])
 
-  const update = useCallback(
-    async (id: string, patch: Partial<WishItemInput>) => {
-      const item = await repository.update(id, patch)
-      await refresh()
-      return item
-    },
-    [refresh],
-  )
+  const update = useCallback(async (id: string, patch: Partial<WishItemInput>) => {
+    const item = await repository.update(id, patch)
+    setItems((prev) => [item, ...prev.filter((i) => i.id !== id)])
+    return item
+  }, [])
 
-  const remove = useCallback(
-    async (id: string) => {
-      await repository.remove(id)
-      await refresh()
-    },
-    [refresh],
-  )
+  const remove = useCallback(async (id: string) => {
+    await repository.remove(id)
+    setItems((prev) => prev.filter((i) => i.id !== id))
+  }, [])
 
   return { items, loading, create, update, remove }
 }
