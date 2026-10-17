@@ -85,12 +85,16 @@ export default function EditModal({ item, prefill, vp, categories: allCategories
 
   // Lê nome e preço direto da foto via IA — só quando os campos ainda estão
   // vazios, pra nunca sobrescrever o que o usuário já preencheu (ex: ao
-  // trocar a foto de um item que já tem nome e preço).
+  // trocar a foto de um item que já tem nome e preço). Usa a imagem ORIGINAL
+  // (antes do recorte), não a foto já recortada: o recorte existe pra deixar
+  // a foto bonita e quadrada, e normalmente corta fora o preço, que costuma
+  // ficar em outra parte da tela — a original ainda tem a tela inteira.
   async function confirmPhoto(cropped: string) {
+    const original = cropSrc
     setPhoto(cropped)
     setCropSrc(null)
     if (!isSupabaseConfigured || name.trim() || priceReais) return
-    const parts = splitDataUrl(cropped)
+    const parts = splitDataUrl(original ?? cropped)
     if (!parts) return
     setExtractingPhoto(true)
     try {
