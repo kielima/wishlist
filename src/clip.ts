@@ -27,6 +27,10 @@ function dedupe(list: (string | undefined | null)[]): string[] {
   return out
 }
 
+function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
+  return Promise.race([p, new Promise<T>((_, reject) => setTimeout(() => reject(new Error('timeout')), ms))])
+}
+
 const KEY = 'wishlist:pendingClip'
 
 interface RawClip {
@@ -117,7 +121,7 @@ export async function resolveClip(raw: RawClip): Promise<ClipPrefill> {
   // reputação de IP (ex.: Mercado Livre): aqui quem busca a página é o
   // celular do usuário, não o datacenter da função. No navegador comum
   // (PWA), isNativePlatform() é falso e isso vira um no-op imediato.
-  const native = await scrapeViaNativeBrowser(url)
+  const native = await scrapeViaNativeBrowser(url).catch(() => null)
   if (native && (native.name || native.images?.length)) {
     const photos = dedupe(native.images ?? [])
     return {
@@ -133,7 +137,9 @@ export async function resolveClip(raw: RawClip): Promise<ClipPrefill> {
   if (!supabase) return { name: raw.title, link: url }
 
   try {
-    const { data, error } = await supabase.functions.invoke('clip', { body: { url } })
+    // Sem limite, um fetch pendurado (rede ruim, loja lenta) deixava o app
+    // "buscando" para sempre, sem nunca abrir o formulário.
+    const { data, error } = await withTimeout(supabase.functions.invoke('clip', { body: { url } }), 15000)
     if (error || !data) return { name: raw.title, link: url }
     const photos = dedupe([...(Array.isArray(data.images) ? data.images : []), data.image])
     // Sem nenhuma foto, o `name` vindo do servidor não é confiável — pode ser
