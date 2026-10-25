@@ -1,7 +1,11 @@
 import { CheckIcon } from './Icons'
 
-/** Toast efêmero no rodapé. A key força reanimar a cada nova mensagem. */
-export default function Toast({ message }: { message: string }) {
+/**
+ * Toast efêmero no rodapé. A key força reanimar a cada nova mensagem.
+ * `sticky` mantém o toast visível até ser trocado/removido (ex.: enquanto
+ * busca os dados de um link compartilhado, que pode levar vários segundos).
+ */
+export default function Toast({ message, sticky }: { message: string; sticky?: boolean }) {
   return (
     <div
       style={{
@@ -16,7 +20,7 @@ export default function Toast({ message }: { message: string }) {
         borderRadius: 999,
         padding: '11px 18px',
         boxShadow: '0 8px 24px rgba(0,0,0,.25)',
-        animation: 'toastIn 1.6s ease forwards',
+        animation: sticky ? 'toastStay .25s ease forwards' : 'toastIn 1.6s ease forwards',
         pointerEvents: 'none',
       }}
     >

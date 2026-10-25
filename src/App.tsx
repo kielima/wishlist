@@ -80,7 +80,7 @@ function WishlistApp({ onSignOut }: { onSignOut?: () => void }) {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [editingItem, setEditingItem] = useState<WishItem | undefined>(undefined)
   const [clipPrefill, setClipPrefill] = useState<ClipPrefill | undefined>(undefined)
-  const [toast, setToast] = useState<{ msg: string; key: number } | null>(null)
+  const [toast, setToast] = useState<{ msg: string; key: number; sticky?: boolean } | null>(null)
 
   const current = items.find((i) => i.id === selectedId)
 
@@ -241,8 +241,15 @@ function WishlistApp({ onSignOut }: { onSignOut?: () => void }) {
   useEffect(() => {
     const pending = takePendingClip()
     if (!pending) return
-    setToast({ msg: 'Buscando dados do produto…', key: Date.now() })
-    resolveClip(pending).then(setPendingClipPrefill)
+    setToast({ msg: 'Buscando dados do produto…', key: Date.now(), sticky: true })
+    // Qualquer falha inesperada ainda abre o formulário (com o que houver),
+    // em vez de deixar o compartilhamento sumir em silêncio.
+    resolveClip(pending)
+      .catch(() => ({ name: pending.title, link: pending.url || pending.link }))
+      .then((prefill) => {
+        setToast(null)
+        setPendingClipPrefill(prefill)
+      })
   }, [])
 
   // Espera a wishlist carregar antes de casar pelo link — assim, se o item já
@@ -520,7 +527,7 @@ function WishlistApp({ onSignOut }: { onSignOut?: () => void }) {
         />
       )}
 
-      {toast && <Toast key={toast.key} message={toast.msg} />}
+      {toast && <Toast key={toast.key} message={toast.msg} sticky={toast.sticky} />}
     </div>
     </RatesContext.Provider>
   )

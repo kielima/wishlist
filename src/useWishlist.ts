@@ -55,8 +55,13 @@ export function useWishlist() {
           // IndexedDB indisponível (modo privado, quota, etc.) — segue sem cache.
         }
       }
-      await refresh()
-      if (!cancelled) setLoading(false)
+      try {
+        await refresh()
+      } finally {
+        // Mesmo se a busca falhar: com `loading` preso em true, o
+        // compartilhamento (que espera a lista carregar) nunca abriria.
+        if (!cancelled) setLoading(false)
+      }
     }
     start()
     return () => {

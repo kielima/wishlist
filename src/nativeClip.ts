@@ -87,7 +87,7 @@ function scrapeProductInPage(): void {
  * Assume no máximo uma chamada em andamento por vez (o app não dispara scrapes
  * concorrentes), então não filtra eventos por id de webview.
  */
-export async function scrapeViaNativeBrowser(url: string, timeoutMs = 20000): Promise<NativeScrapeResult | null> {
+export async function scrapeViaNativeBrowser(url: string, timeoutMs = 15000): Promise<NativeScrapeResult | null> {
   if (!isNativePlatform()) return null
 
   return new Promise((resolve) => {
@@ -120,8 +120,15 @@ export async function scrapeViaNativeBrowser(url: string, timeoutMs = 20000): Pr
     // Mercado Livre) têm um <title> genérico ("Mercado Libre") mas nenhuma
     // imagem de produto. Um nome sozinho não distingue a página de bloqueio
     // da página real; presença de imagem é o sinal confiável.
+    //
+    // No Android o plugin "achata" o objeto mandado por
+    // window.mobileApp.postMessage(obj): as chaves de `obj` (name, images…)
+    // chegam no topo do evento, não dentro de `event.detail` — `detail` só
+    // existe quando a página manda `{ detail: … }` explicitamente. Ler só
+    // `event.detail` descartava TODA resposta e o scrape sempre esgotava o
+    // timeout. Aceita os dois formatos.
     const msgHandle = InAppBrowser.addListener('messageFromWebview', (event) => {
-      const result = (event.detail as NativeScrapeResult) ?? null
+      const result = ((event.detail ?? event) as NativeScrapeResult) ?? null
       if (result?.images?.length) finish(result)
     })
 
