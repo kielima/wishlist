@@ -161,6 +161,17 @@ export function DuelIcon({ color = 'currentColor' }: { color?: string }) {
   )
 }
 
+export function AhpIcon({ color = 'currentColor' }: { color?: string }) {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16">
+      <path d="M8 2v3M8 5L3.5 9M8 5l4.5 4M3.5 9v3.5M12.5 9v3.5" stroke={color} strokeWidth="1.4" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx="8" cy="2" r="1.3" fill={color} />
+      <circle cx="3.5" cy="13" r="1.3" fill={color} />
+      <circle cx="12.5" cy="13" r="1.3" fill={color} />
+    </svg>
+  )
+}
+
 export function LockIcon({ size = 12, color = '#b8860b' }: { size?: number; color?: string }) {
   return (
     <svg width={size} height={size} viewBox="0 0 14 14">

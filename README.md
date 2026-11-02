@@ -27,6 +27,14 @@ de *Exposed schemas* que precisa ser feita pelo dashboard — está em
 [`docs/CONSOLIDACAO_SUPABASE.md`](https://github.com/kielima/app-produtividade/blob/main/docs/CONSOLIDACAO_SUPABASE.md)
 no repo do app-produtividade.
 
+## Decisão com AHP
+
+O botão **Decidir** (ao lado de Duelo) abre um assistente AHP (Saaty): critérios
+com pesos por comparação par-a-par (escala 1–9), itens comparados em cada
+critério e ranking final. Mostra a razão de consistência (CR) e avisa quando
+CR ≥ 0,1. A matemática é pura em `src/lib/ahp.ts`; o estado fica em
+`localStorage` (por aparelho), sem Supabase.
+
 ## Rodando localmente
 
 ```bash
