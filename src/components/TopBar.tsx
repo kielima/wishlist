@@ -1,6 +1,6 @@
 import type { WishItem } from '../types'
 import { formatPrice } from '../format'
-import { DuelIcon, FilterIcon } from './Icons'
+import { AhpIcon, DuelIcon, FilterIcon } from './Icons'
 
 type Filter = 'desejados' | 'concluidos' | 'favoritos'
 type Layout = 'editorial' | 'gallery'
@@ -15,12 +15,13 @@ interface Props {
   filterCount: number
   onOpenFilter: () => void
   onOpenDuel: () => void
+  onOpenAhp: () => void
 }
 
 const display = 'var(--font-display)'
 const mono = 'var(--font-mono)'
 
-export default function TopBar({ items, filter, setFilter, layout, setLayout, totalWantedCents, filterCount, onOpenFilter, onOpenDuel }: Props) {
+export default function TopBar({ items, filter, setFilter, layout, setLayout, totalWantedCents, filterCount, onOpenFilter, onOpenDuel, onOpenAhp }: Props) {
   const wanted = items.filter((i) => i.status === 'wanted').length
   const bought = items.filter((i) => i.status === 'bought').length
   const favorites = items.filter((i) => i.favorite).length
@@ -101,6 +102,9 @@ export default function TopBar({ items, filter, setFilter, layout, setLayout, to
         </button>
         <button onClick={onOpenDuel} aria-label="Duelar itens" title="Duelar itens" className="press" style={{ flexShrink: 0, background: '#fff', border: '1.5px solid #e2e2e2', cursor: 'pointer', borderRadius: 13, width: 46, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#0a0a0a' }}>
           <DuelIcon color="currentColor" />
+        </button>
+        <button onClick={onOpenAhp} aria-label="Decidir com AHP" title="Decidir com AHP" className="press" style={{ flexShrink: 0, background: '#fff', border: '1.5px solid #e2e2e2', cursor: 'pointer', borderRadius: 13, width: 46, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#0a0a0a' }}>
+          <AhpIcon color="currentColor" />
         </button>
       </div>
     </div>

@@ -24,13 +24,14 @@ import ActiveChips, { type Chip } from './components/ActiveChips'
 import DetailModal from './components/DetailModal'
 import EditModal from './components/EditModal'
 import DuelModal from './components/DuelModal'
+import AhpModal from './components/AhpModal'
 import CategoryManager from './components/CategoryManager'
 import Login from './screens/Login'
 import Toast from './components/Toast'
 
 type Filter = 'desejados' | 'concluidos' | 'favoritos'
 type Layout = 'editorial' | 'gallery'
-type Modal = 'detail' | 'edit' | 'duel' | null
+type Modal = 'detail' | 'edit' | 'duel' | 'ahp' | null
 
 const HEADINGS: Record<Filter, string> = { desejados: 'Desejados', concluidos: 'Concluídos', favoritos: 'Favoritos' }
 
@@ -280,6 +281,9 @@ function WishlistApp({ onSignOut }: { onSignOut?: () => void }) {
   function openDuel() {
     setModal('duel')
   }
+  function openAhp() {
+    setModal('ahp')
+  }
   function closeModal() {
     setModal(null)
     setEditingItem(undefined)
@@ -429,7 +433,7 @@ function WishlistApp({ onSignOut }: { onSignOut?: () => void }) {
 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, position: 'relative' }}>
         {isNarrow ? (
-          <TopBar items={items} filter={filter} setFilter={setFilter} layout={layout} setLayout={setLayout} totalWantedCents={wantedTotal} filterCount={filterCount} onOpenFilter={openFilter} onOpenDuel={openDuel} />
+          <TopBar items={items} filter={filter} setFilter={setFilter} layout={layout} setLayout={setLayout} totalWantedCents={wantedTotal} filterCount={filterCount} onOpenFilter={openFilter} onOpenDuel={openDuel} onOpenAhp={openAhp} />
         ) : (
           <Header
             heading={heading}
@@ -447,6 +451,7 @@ function WishlistApp({ onSignOut }: { onSignOut?: () => void }) {
             sidebarOpen={sidebarOpen}
             onToggleSidebar={toggleSidebar}
             onOpenDuel={openDuel}
+            onOpenAhp={openAhp}
           />
         )}
 
@@ -513,6 +518,7 @@ function WishlistApp({ onSignOut }: { onSignOut?: () => void }) {
         <DetailModal item={current} allItems={items} vp={vp} onClose={closeModal} onEdit={editCurrent} onDelete={deleteCurrent} onToggleBought={toggleBought} onToggleFav={() => toggleFav(current.id)} onAttachReceipt={attachReceipt} onRemoveReceipt={removeReceipt} />
       )}
       {modal === 'edit' && <EditModal item={editingItem} prefill={clipPrefill} vp={vp} categories={allCategories} allItems={items} onAddCategory={handleAddCategory} onManageCategories={() => setCatManagerOpen(true)} onClose={closeModal} onSave={handleSave} />}
+      {modal === 'ahp' && <AhpModal items={duelCandidates} vp={vp} onClose={closeModal} />}
       {modal === 'duel' && <DuelModal items={duelCandidates} ratings={duelRatings} vp={vp} onClose={closeModal} onApplySession={applyDuelSession} />}
 
       {catManagerOpen && (
