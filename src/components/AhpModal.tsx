@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from 'react'
-import { allPairs, analyzeJudgments, CR_LIMIT, computeAhp, judgmentOf, judgmentToStep, mostInconsistentPair, pairKey, stepToJudgment, type Judgments } from '../lib/ahp'
+import { useMemo, useState } from 'react'
+import { allPairs, analyzeJudgments, CR_LIMIT, judgmentOf, judgmentToStep, mostInconsistentPair, pairCount, pairKey, stepToJudgment, type AhpResult, type Judgments } from '../lib/ahp'
+import { computeFor, effectiveMode, emptySaved, idKey, itemJudgmentsFor, MAX_CRITERIA, ratingOf, type AhpSaved, type ItemMode } from '../lib/ahpStore'
 import { initialOf } from '../format'
 import type { WishItem } from '../types'
 import type { Viewport } from '../useViewport'
@@ -7,8 +8,11 @@ import { Overlay } from './DetailModal'
 import { CloseIcon } from './Icons'
 
 interface Props {
-  /** Itens elegíveis (desejados, dentro dos filtros ativos). */
+  /** Todos os itens elegíveis (desejados, dentro dos filtros ativos) — entram todos na decisão. */
   items: WishItem[]
+  /** Estado da decisão, guardado pelo App (que também o usa na ordenação "Ranking AHP"). */
+  saved: AhpSaved
+  setSaved: (fn: (s: AhpSaved) => AhpSaved) => void
   vp: Viewport
   onClose: () => void
 }
@@ -19,85 +23,38 @@ const label: React.CSSProperties = { fontFamily: mono, fontSize: 9.5, letterSpac
 const ghostBtn: React.CSSProperties = { background: '#f4f4f4', border: 'none', cursor: 'pointer', borderRadius: 12, padding: '13px 18px', fontFamily: 'var(--font-body)', fontSize: 13.5, fontWeight: 600, color: '#0a0a0a' }
 const primaryBtn: React.CSSProperties = { flex: 1, background: '#0a0a0a', border: 'none', cursor: 'pointer', borderRadius: 12, padding: 13, fontFamily: 'var(--font-body)', fontSize: 14, fontWeight: 600, color: '#fff' }
 
-const STORAGE_KEY = 'wishlist.ahp.v1'
-const MAX_ITEMS = 8
-const MAX_CRITERIA = 8
-const DEFAULT_CRITERIA = ['Preço', 'Utilidade', 'Desejo']
-
 type Step = 'criterios' | 'pesos' | 'itens' | 'resultado'
 
-/** Estado persistido (por aparelho). Julgamentos de itens ficam indexados pelo id do item, não pela posição. */
-interface Saved {
-  criteria: string[]
-  /** Julgamentos entre critérios, chave `"i|j"` por posição. */
-  criteriaJudgments: Judgments
-  selected: string[]
-  /** Por critério (posição): chave `"idA|idB"` com idA < idB → quanto A é preferível a B. */
-  itemJudgments: Array<Record<string, number>>
-}
-
-function load(): Saved {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    if (raw) {
-      const s = JSON.parse(raw) as Partial<Saved>
-      if (Array.isArray(s.criteria) && s.criteria.length >= 2) {
-        return { criteria: s.criteria, criteriaJudgments: s.criteriaJudgments ?? {}, selected: s.selected ?? [], itemJudgments: s.itemJudgments ?? [] }
-      }
-    }
-  } catch {
-    /* storage indisponível ou corrompido: começa do zero */
-  }
-  return { criteria: DEFAULT_CRITERIA, criteriaJudgments: {}, selected: [], itemJudgments: [] }
-}
-
-const idKey = (a: string, b: string) => (a < b ? `${a}|${b}` : `${b}|${a}`)
-
-export default function AhpModal({ items, vp, onClose }: Props) {
+export default function AhpModal({ items, saved, setSaved, vp, onClose }: Props) {
   const { isNarrow } = vp
-  const [saved, setSaved] = useState<Saved>(load)
   const [step, setStep] = useState<Step>('criterios')
   const [critIdx, setCritIdx] = useState(0)
   const [newCrit, setNewCrit] = useState('')
 
-  useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(saved))
-    } catch {
-      /* sem persistência: segue só em memória */
-    }
-  }, [saved])
-
   const { criteria, criteriaJudgments } = saved
-  const itemById = useMemo(() => new Map(items.map((i) => [i.id, i])), [items])
-  // Seleção: ids salvos ainda existentes; sem seleção válida, os primeiros itens.
-  const selected = useMemo(() => {
-    const valid = saved.selected.filter((id) => itemById.has(id))
-    return valid.length >= 2 ? valid : items.slice(0, 5).map((i) => i.id)
-  }, [saved.selected, items, itemById])
+  // Todos os itens elegíveis, numa ordem estável (nome) para as comparações.
+  const sorted = useMemo(() => [...items].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR')), [items])
+  const ids = useMemo(() => sorted.map((i) => i.id), [sorted])
+  const names = sorted.map((i) => i.name)
+  const mode = effectiveMode(saved, ids.length)
 
-  const patch = (p: Partial<Saved>) => setSaved((s) => ({ ...s, ...p }))
+  const patch = (p: Partial<AhpSaved>) => setSaved((s) => ({ ...s, ...p }))
 
-  // Julgamentos de itens do critério c, convertidos para posições na seleção atual.
-  function positional(c: number): Judgments {
-    const out: Judgments = {}
-    const store = saved.itemJudgments[c] ?? {}
-    for (const [i, j] of allPairs(selected.length)) {
-      const a = selected[i]!
-      const b = selected[j]!
-      const v = store[idKey(a, b)]
-      if (v !== undefined) out[pairKey(i, j)] = a < b ? v : 1 / v
-    }
-    return out
-  }
   function setItemJudgment(c: number, i: number, j: number, v: number) {
-    const a = selected[i]!
-    const b = selected[j]!
+    const a = ids[i]!
+    const b = ids[j]!
     const stored = a < b ? v : 1 / v
     setSaved((s) => {
-      const list = Array.from({ length: criteria.length }, (_, k) => s.itemJudgments[k] ?? {})
+      const list = Array.from({ length: s.criteria.length }, (_, k) => s.itemJudgments[k] ?? {})
       list[c] = { ...list[c], [idKey(a, b)]: stored }
       return { ...s, itemJudgments: list }
+    })
+  }
+  function setItemRating(c: number, id: string, v: number) {
+    setSaved((s) => {
+      const list = Array.from({ length: s.criteria.length }, (_, k) => s.itemRatings[k] ?? {})
+      list[c] = { ...list[c], [id]: v }
+      return { ...s, itemRatings: list }
     })
   }
   function setCriteriaJudgment(i: number, j: number, v: number) {
@@ -122,31 +79,21 @@ export default function AhpModal({ items, vp, onClose }: Props) {
       criteria: keep.map((k) => criteria[k]!),
       criteriaJudgments: next,
       itemJudgments: keep.map((k) => saved.itemJudgments[k] ?? {}),
+      itemRatings: keep.map((k) => saved.itemRatings[k] ?? {}),
     })
     setCritIdx(0)
   }
-  function toggleItem(id: string) {
-    if (selected.includes(id)) {
-      if (selected.length > 2) patch({ selected: selected.filter((x) => x !== id) })
-    } else if (selected.length < MAX_ITEMS) {
-      patch({ selected: [...selected, id] })
-    }
+  function setMode(m: ItemMode) {
+    patch({ itemMode: m })
   }
   function reset() {
-    setSaved({ criteria: DEFAULT_CRITERIA, criteriaJudgments: {}, selected: [], itemJudgments: [] })
+    setSaved(() => emptySaved())
     setStep('criterios')
     setCritIdx(0)
   }
 
-  const itemJudgmentsPos = useMemo(
-    () => criteria.map((_, c) => positional(c)),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [criteria, saved.itemJudgments, selected],
-  )
-  const result = useMemo(
-    () => computeAhp({ criteriaCount: criteria.length, criteriaJudgments, itemCount: selected.length, itemJudgments: itemJudgmentsPos }),
-    [criteria.length, criteriaJudgments, selected.length, itemJudgmentsPos],
-  )
+  const itemJudgmentsPos = useMemo(() => criteria.map((_, c) => itemJudgmentsFor(saved, c, ids, mode)), [saved, criteria, ids, mode])
+  const result = useMemo(() => computeFor(saved, ids, mode), [saved, ids, mode])
 
   if (items.length < 2) {
     return (
@@ -165,7 +112,10 @@ export default function AhpModal({ items, vp, onClose }: Props) {
   const stepIdx = steps.indexOf(step)
   const back = () => {
     if (step === 'itens' && critIdx > 0) setCritIdx(critIdx - 1)
-    else setStep(steps[Math.max(0, stepIdx - 1)]!)
+    else if (step === 'resultado') {
+      setCritIdx(criteria.length - 1)
+      setStep('itens')
+    } else setStep(steps[Math.max(0, stepIdx - 1)]!)
   }
   const next = () => {
     if (step === 'itens' && critIdx < criteria.length - 1) setCritIdx(critIdx + 1)
@@ -176,6 +126,7 @@ export default function AhpModal({ items, vp, onClose }: Props) {
   }
 
   const critResult = analyzeJudgments(criteria.length, criteriaJudgments)
+  const pairsPerCrit = pairCount(ids.length)
 
   return (
     <Overlay isNarrow={isNarrow} onClose={onClose}>
@@ -188,7 +139,7 @@ export default function AhpModal({ items, vp, onClose }: Props) {
             <div style={label}>Decisão AHP · passo {stepIdx + 1} de {steps.length}</div>
             <div style={{ fontFamily: display, fontSize: 18, fontWeight: 700, marginTop: 2 }}>
               {titles[step]}
-              {step === 'itens' && <span style={{ color: '#9a9a9a', fontWeight: 600 }}> · {criteria[critIdx]}</span>}
+              {step === 'itens' && <span style={{ color: '#9a9a9a', fontWeight: 600 }}> · {criteria[critIdx]} ({critIdx + 1}/{criteria.length})</span>}
             </div>
           </div>
           <button onClick={onClose} aria-label="Fechar" className="soft-hover" style={{ background: '#f4f4f4', border: 'none', cursor: 'pointer', width: 32, height: 32, borderRadius: 9, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -199,7 +150,7 @@ export default function AhpModal({ items, vp, onClose }: Props) {
         <div data-scroll style={{ flex: 1, overflow: 'auto', padding: isNarrow ? 18 : 26 }}>
           {step === 'criterios' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-              <div style={{ fontSize: 13.5, color: '#6b6b6b', lineHeight: 1.5 }}>Defina o que importa na decisão (de 2 a {MAX_CRITERIA} critérios). Nos próximos passos você diz o quanto cada um pesa mais que os outros.</div>
+              <div style={{ fontSize: 13.5, color: '#6b6b6b', lineHeight: 1.5 }}>Defina o que importa na decisão (de 2 a {MAX_CRITERIA} critérios). Nos próximos passos você diz o quanto cada um pesa mais que os outros e avalia todos os itens em cada critério.</div>
               {criteria.map((c, idx) => (
                 <div key={c} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', border: '1.5px solid #ececec', borderRadius: 12, padding: '10px 14px', fontSize: 14, fontWeight: 600 }}>
                   {c}
@@ -214,26 +165,42 @@ export default function AhpModal({ items, vp, onClose }: Props) {
                   <button type="submit" disabled={!newCrit.trim()} className="press" style={{ ...ghostBtn, opacity: newCrit.trim() ? 1 : 0.5 }}>Adicionar</button>
                 </form>
               )}
-              <div style={{ ...label, marginTop: 6 }}>Itens na comparação ({selected.length}/{MAX_ITEMS})</div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                {items.map((it) => {
-                  const on = selected.includes(it.id)
-                  const blocked = !on && selected.length >= MAX_ITEMS
+
+              <div style={{ ...label, marginTop: 6 }}>Itens na decisão · todos os {ids.length} desejados nos filtros ativos</div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                {sorted.map((it) => (
+                  <span key={it.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: '#f6f6f6', borderRadius: 9, padding: '4px 9px 4px 4px', fontSize: 12.5, maxWidth: '100%' }}>
+                    <ItemThumb item={it} size={20} />
+                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{it.name}</span>
+                  </span>
+                ))}
+              </div>
+
+              <div style={{ ...label, marginTop: 6 }}>Como avaliar os itens</div>
+              <div role="radiogroup" aria-label="Como avaliar os itens" style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                {([
+                  ['pares', 'Comparar em pares', `${pairsPerCrit} ${pairsPerCrit === 1 ? 'par' : 'pares'} por critério`],
+                  ['notas', 'Dar notas de 1 a 9', `${ids.length} notas por critério`],
+                ] as const).map(([m, title, sub]) => {
+                  const on = mode === m
                   return (
-                    <label key={it.id} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 14, opacity: blocked ? 0.4 : 1, cursor: blocked ? 'default' : 'pointer' }}>
-                      <input type="checkbox" checked={on} disabled={blocked || (on && selected.length <= 2)} onChange={() => toggleItem(it.id)} />
-                      <ItemThumb item={it} size={26} />
-                      {it.name}
-                    </label>
+                    <button key={m} role="radio" aria-checked={on} onClick={() => setMode(m)} className="press" style={{ flex: '1 1 180px', textAlign: 'left', background: on ? '#0a0a0a' : '#fff', color: on ? '#fff' : '#0a0a0a', border: `1.5px solid ${on ? '#0a0a0a' : '#e2e2e2'}`, borderRadius: 12, padding: '10px 14px', cursor: 'pointer', fontFamily: 'var(--font-body)' }}>
+                      <div style={{ fontSize: 13.5, fontWeight: 600 }}>{title}</div>
+                      <div style={{ fontSize: 11.5, opacity: 0.7, marginTop: 2 }}>{sub}</div>
+                    </button>
                   )
                 })}
               </div>
+              {mode === 'pares' && pairsPerCrit > 15 && (
+                <div style={{ fontSize: 12.5, lineHeight: 1.45, borderRadius: 12, padding: '10px 14px', background: '#fff6e5', color: '#8a5a00' }}>
+                  Com {ids.length} itens são {pairsPerCrit * criteria.length} comparações no total. Dar notas mede o mesmo de forma bem mais rápida.
+                </div>
+              )}
             </div>
           )}
 
           {step === 'pesos' && (
             <PairwiseForm
-              names={criteria}
               judgments={criteriaJudgments}
               onChange={setCriteriaJudgment}
               intro="Qual critério pesa mais na sua decisão, e quanto mais?"
@@ -242,26 +209,27 @@ export default function AhpModal({ items, vp, onClose }: Props) {
             />
           )}
 
-          {step === 'itens' && (
+          {step === 'itens' && mode === 'pares' && (
             <PairwiseForm
-              names={selected.map((id) => itemById.get(id)!.name)}
               judgments={itemJudgmentsPos[critIdx] ?? {}}
               onChange={(i, j, v) => setItemJudgment(critIdx, i, j, v)}
               intro={`Em "${criteria[critIdx]}", qual item é melhor, e quanto?`}
               result={result.perCriterion[critIdx]!}
-              labels={selected.map((id) => itemById.get(id)!.name)}
+              labels={names}
             />
           )}
 
-          {step === 'resultado' && (
-            <ResultView
-              names={selected.map((id) => itemById.get(id)!.name)}
-              thumbs={selected.map((id) => itemById.get(id)!)}
-              criteria={criteria}
-              result={result}
-              critResult={critResult}
+          {step === 'itens' && mode === 'notas' && (
+            <RatingForm
+              items={sorted}
+              ratingOf={(id) => ratingOf(saved, critIdx, id)}
+              onChange={(id, v) => setItemRating(critIdx, id, v)}
+              criterion={criteria[critIdx]!}
+              weights={result.perCriterion[critIdx]!.weights}
             />
           )}
+
+          {step === 'resultado' && <ResultView names={names} thumbs={sorted} criteria={criteria} result={result} critResult={critResult} />}
         </div>
 
         <div style={{ padding: '14px 22px 20px', borderTop: '1px solid #f0f0f0', display: 'flex', gap: 11 }}>
@@ -282,6 +250,31 @@ export default function AhpModal({ items, vp, onClose }: Props) {
         </div>
       </div>
     </Overlay>
+  )
+}
+
+const RATING_WORDS: Record<number, string> = { 1: 'péssimo', 2: 'muito fraco', 3: 'fraco', 4: 'abaixo da média', 5: 'médio', 6: 'acima da média', 7: 'bom', 8: 'muito bom', 9: 'excelente' }
+
+/** Modo de notas: todos os itens numa lista, cada um com nota 1–9 no critério. */
+function RatingForm({ items, ratingOf, onChange, criterion, weights }: { items: WishItem[]; ratingOf: (id: string) => number; onChange: (id: string, v: number) => void; criterion: string; weights: number[] }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div style={{ fontSize: 13.5, color: '#6b6b6b', lineHeight: 1.5 }}>Em "{criterion}", dê uma nota de 1 (pior) a 9 (melhor) a cada item. O que vale é a proporção entre as notas: um 8 conta o dobro de um 4.</div>
+      {items.map((it, k) => {
+        const v = ratingOf(it.id)
+        return (
+          <div key={it.id} style={{ border: '1.5px solid #ececec', borderRadius: 14, padding: '10px 14px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <ItemThumb item={it} size={26} />
+              <span style={{ flex: 1, minWidth: 0, fontSize: 14, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{it.name}</span>
+              <span style={{ fontFamily: mono, fontSize: 11, color: '#9a9a9a' }}>{(weights[k]! * 100).toFixed(0)}%</span>
+            </div>
+            <input type="range" min={1} max={9} step={1} value={v} aria-label={`Nota de ${it.name} em ${criterion}`} onChange={(e) => onChange(it.id, Number(e.target.value))} style={{ width: '100%', margin: '8px 0 2px' }} />
+            <div style={{ fontFamily: mono, fontSize: 11, color: '#9a9a9a' }}>{v} · {RATING_WORDS[v]}</div>
+          </div>
+        )
+      })}
+    </div>
   )
 }
 
@@ -312,12 +305,12 @@ function ConsistencyNote({ result, n }: { result: ReturnType<typeof analyzeJudgm
   )
 }
 
-function PairwiseForm({ names, labels, judgments, onChange, intro, result }: { names: string[]; labels: string[]; judgments: Judgments; onChange: (i: number, j: number, v: number) => void; intro: string; result: ReturnType<typeof analyzeJudgments> }) {
-  const suspect = !result.consistent ? mostInconsistentPair(names.length, judgments) : null
+function PairwiseForm({ labels, judgments, onChange, intro, result }: { labels: string[]; judgments: Judgments; onChange: (i: number, j: number, v: number) => void; intro: string; result: ReturnType<typeof analyzeJudgments> }) {
+  const suspect = !result.consistent ? mostInconsistentPair(labels.length, judgments) : null
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       <div style={{ fontSize: 13.5, color: '#6b6b6b', lineHeight: 1.5 }}>{intro} Arraste para o lado de quem vence; o centro é empate.</div>
-      {allPairs(names.length).map(([i, j]) => {
+      {allPairs(labels.length).map(([i, j]) => {
         const step = judgmentToStep(judgmentOf(judgments, i, j))
         const flagged = suspect && suspect.pair[0] === i && suspect.pair[1] === j
         return (
@@ -341,7 +334,7 @@ function PairwiseForm({ names, labels, judgments, onChange, intro, result }: { n
           </div>
         )
       })}
-      <ConsistencyNote result={result} n={names.length} />
+      <ConsistencyNote result={result} n={labels.length} />
     </div>
   )
 }
@@ -354,7 +347,7 @@ function Bar({ value, max }: { value: number; max: number }) {
   )
 }
 
-function ResultView({ names, thumbs, criteria, result, critResult }: { names: string[]; thumbs: WishItem[]; criteria: string[]; result: ReturnType<typeof computeAhp>; critResult: ReturnType<typeof analyzeJudgments> }) {
+function ResultView({ names, thumbs, criteria, result, critResult }: { names: string[]; thumbs: WishItem[]; criteria: string[]; result: AhpResult; critResult: ReturnType<typeof analyzeJudgments> }) {
   const top = Math.max(...result.scores)
   const warnings: string[] = []
   if (!critResult.consistent) warnings.push(`pesos dos critérios (CR ${critResult.cr.toFixed(2).replace('.', ',')})`)
