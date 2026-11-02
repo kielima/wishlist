@@ -29,11 +29,17 @@ no repo do app-produtividade.
 
 ## Decisão com AHP
 
-O botão **Decidir** (ao lado de Duelo) abre um assistente AHP (Saaty): critérios
-com pesos por comparação par-a-par (escala 1–9), itens comparados em cada
-critério e ranking final. Mostra a razão de consistência (CR) e avisa quando
-CR ≥ 0,1. A matemática é pura em `src/lib/ahp.ts`; o estado fica em
-`localStorage` (por aparelho), sem Supabase.
+O botão **Decidir** abre um assistente AHP (Saaty) que entra com **todos** os
+itens desejados dentro dos filtros ativos — substituiu o antigo Duelo de 2 em 2.
+Critérios com pesos por comparação par-a-par (escala 1–9), depois todos os itens
+avaliados em cada critério, de um de dois modos: comparação em pares (padrão até
+6 itens) ou nota 1–9 por item (modo de classificação do AHP, padrão acima disso).
+Ranking final, razão de consistência (CR, aviso quando ≥ 0,1) e a ordenação
+"Ranking AHP" na lista. Matemática pura em `src/lib/ahp.ts`, estado em
+`src/lib/ahpStore.ts` (`localStorage`, por aparelho, sem Supabase).
+
+Os ratings Glicko-2 dos duelos antigos continuam guardados (tabela Dexie
+`duelRatings` e a tabela do Supabase); só a tela de Duelo saiu.
 
 ## Rodando localmente
 
