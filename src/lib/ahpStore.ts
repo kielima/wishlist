@@ -33,6 +33,8 @@ export interface AhpSaved {
   itemRatings: Array<Record<string, number>>
   /** Modo escolhido; ausente = automático pelo número de itens. */
   itemMode?: ItemMode
+  /** Id da última sugestão de pesos já aplicada ou ignorada neste aparelho (ver ahpSuggestion.ts). */
+  suggestionHandled?: string
 }
 
 export function emptySaved(): AhpSaved {
@@ -51,6 +53,7 @@ export function loadAhp(): AhpSaved {
           itemJudgments: s.itemJudgments ?? [],
           itemRatings: s.itemRatings ?? [],
           itemMode: s.itemMode === 'pares' || s.itemMode === 'notas' ? s.itemMode : undefined,
+          suggestionHandled: typeof s.suggestionHandled === 'string' ? s.suggestionHandled : undefined,
         }
       }
     }
