@@ -45,8 +45,8 @@ isso no Supabase. O app só mostra a sugestão.
    entre o maior e o menor peso. Acima disso o app corta a razão e a matriz
    perde um pouco de consistência.
 4. **Escrever uma justificativa por critério**, em uma linha (≤ 200
-   caracteres), em termos gerais ("frente principal é X", "fase de
-   transição de renda"). Nunca escrever valores, salários, dívidas, nomes de
+   caracteres), em termos gerais ("serve à frente principal", "resolve
+   problema do dia a dia"). Nunca escrever valores, salários, dívidas, nomes de
    empresas ou pessoas, nem dados de saúde.
 5. **Gravar** com a chave de serviço (SQL editor ou MCP `execute_sql`). Isso
    só pode ser feito com o OK de Kiê, porque o banco é de produção:
