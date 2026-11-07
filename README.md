@@ -38,6 +38,12 @@ Ranking final, razão de consistência (CR, aviso quando ≥ 0,1) e a ordenaçã
 "Ranking AHP" na lista. Matemática pura em `src/lib/ahp.ts`, estado em
 `src/lib/ahpStore.ts` (`localStorage`, por aparelho, sem Supabase).
 
+Uma **sugestão de pesos** gerada por um agente a partir dos objetivos de
+carreira (tabela `wishlist.ahp_weight_suggestions`, só leitura no app) pode
+aparecer no assistente com "Aplicar sugestão" / "Ignorar" — nunca é aplicada
+sozinha. Como funciona e como gerar: [`docs/SUGESTAO_AHP_CARREIRA.md`](docs/SUGESTAO_AHP_CARREIRA.md).
+Testes das funções puras: `npm test` (vitest).
+
 Os ratings Glicko-2 dos duelos antigos continuam guardados (tabela Dexie
 `duelRatings` e a tabela do Supabase); só a tela de Duelo saiu.
 

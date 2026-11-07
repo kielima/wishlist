@@ -11,6 +11,8 @@ import { isSupabaseConfigured } from './supabase'
 import { verificarEInstalarAtualizacao } from './nativeUpdate'
 import { signOut, useSession } from './auth'
 import { loadAhp, saveAhp, scoresById, type AhpSaved } from './lib/ahpStore'
+import type { AhpSuggestion } from './lib/ahpSuggestion'
+import { fetchLatestSuggestion } from './ahpSuggestionRepository'
 import type { Priority, Receipt, WishItem, WishItemInput } from './types'
 import Sidebar from './components/Sidebar'
 import Header from './components/Header'
@@ -55,6 +57,18 @@ function WishlistApp({ onSignOut }: { onSignOut?: () => void }) {
       saveAhp(next)
       return next
     })
+  }, [])
+  // Sugestão de pesos AHP gravada por um agente (objetivos de carreira); só é
+  // oferecida dentro do AhpModal, nunca aplicada sozinha.
+  const [ahpSuggestion, setAhpSuggestion] = useState<AhpSuggestion | null>(null)
+  useEffect(() => {
+    let alive = true
+    fetchLatestSuggestion()
+      .then((s) => alive && setAhpSuggestion(s))
+      .catch(() => {})
+    return () => {
+      alive = false
+    }
   }, [])
   const { categories: allCategories, ensure: ensureCategories, add: addCategory, rename: renameCategoryStore, remove: removeCategoryStore } = useCategories()
   const rates = useLiveRates()
@@ -525,7 +539,7 @@ function WishlistApp({ onSignOut }: { onSignOut?: () => void }) {
         <DetailModal item={current} allItems={items} vp={vp} onClose={closeModal} onEdit={editCurrent} onDelete={deleteCurrent} onToggleBought={toggleBought} onToggleFav={() => toggleFav(current.id)} onAttachReceipt={attachReceipt} onRemoveReceipt={removeReceipt} />
       )}
       {modal === 'edit' && <EditModal item={editingItem} prefill={clipPrefill} vp={vp} categories={allCategories} allItems={items} onAddCategory={handleAddCategory} onManageCategories={() => setCatManagerOpen(true)} onClose={closeModal} onSave={handleSave} />}
-      {modal === 'ahp' && <AhpModal items={ahpCandidates} saved={ahp} setSaved={setAhp} vp={vp} onClose={closeModal} />}
+      {modal === 'ahp' && <AhpModal items={ahpCandidates} saved={ahp} setSaved={setAhp} suggestion={ahpSuggestion} onSuggestionApplied={() => setSortBy('ahp')} vp={vp} onClose={closeModal} />}
 
       {catManagerOpen && (
         <CategoryManager

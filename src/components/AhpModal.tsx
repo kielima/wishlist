@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { allPairs, analyzeJudgments, CR_LIMIT, judgmentOf, judgmentToStep, mostInconsistentPair, pairCount, pairKey, stepToJudgment, type AhpResult, type Judgments } from '../lib/ahp'
 import { computeFor, effectiveMode, emptySaved, idKey, itemJudgmentsFor, MAX_CRITERIA, ratingOf, type AhpSaved, type ItemMode } from '../lib/ahpStore'
+import { applySuggestion, planSuggestion, type AhpSuggestion } from '../lib/ahpSuggestion'
 import { initialOf } from '../format'
 import type { WishItem } from '../types'
 import type { Viewport } from '../useViewport'
@@ -13,6 +14,10 @@ interface Props {
   /** Estado da decisão, guardado pelo App (que também o usa na ordenação "Ranking AHP"). */
   saved: AhpSaved
   setSaved: (fn: (s: AhpSaved) => AhpSaved) => void
+  /** Sugestão de pesos (ex.: objetivos de carreira), se houver. Só é aplicada por clique. */
+  suggestion?: AhpSuggestion | null
+  /** Chamado depois de "Aplicar sugestão" (o App passa a ordenar por Ranking AHP). */
+  onSuggestionApplied?: () => void
   vp: Viewport
   onClose: () => void
 }
@@ -25,11 +30,14 @@ const primaryBtn: React.CSSProperties = { flex: 1, background: '#0a0a0a', border
 
 type Step = 'criterios' | 'pesos' | 'itens' | 'resultado'
 
-export default function AhpModal({ items, saved, setSaved, vp, onClose }: Props) {
+export default function AhpModal({ items, saved, setSaved, suggestion, onSuggestionApplied, vp, onClose }: Props) {
   const { isNarrow } = vp
   const [step, setStep] = useState<Step>('criterios')
   const [critIdx, setCritIdx] = useState(0)
   const [newCrit, setNewCrit] = useState('')
+  // Estado anterior à aplicação da sugestão, para "Desfazer"; e reabertura manual do cartão.
+  const [beforeSuggestion, setBeforeSuggestion] = useState<AhpSaved | null>(null)
+  const [reopenSuggestion, setReopenSuggestion] = useState(false)
 
   const { criteria, criteriaJudgments } = saved
   // Todos os itens elegíveis, numa ordem estável (nome) para as comparações.
@@ -85,6 +93,25 @@ export default function AhpModal({ items, saved, setSaved, vp, onClose }: Props)
   }
   function setMode(m: ItemMode) {
     patch({ itemMode: m })
+  }
+  function applyCareerSuggestion() {
+    if (!suggestion) return
+    setBeforeSuggestion(saved)
+    setSaved((s) => applySuggestion(s, suggestion))
+    setReopenSuggestion(false)
+    onSuggestionApplied?.()
+  }
+  function ignoreSuggestion() {
+    if (!suggestion) return
+    patch({ suggestionHandled: suggestion.id })
+    setReopenSuggestion(false)
+  }
+  function undoSuggestion() {
+    if (!beforeSuggestion) return
+    // Volta ao estado anterior mas mantém a sugestão como "já vista".
+    const prev = beforeSuggestion
+    setSaved(() => ({ ...prev, suggestionHandled: suggestion?.id ?? prev.suggestionHandled }))
+    setBeforeSuggestion(null)
   }
   function reset() {
     setSaved(() => emptySaved())
@@ -148,6 +175,18 @@ export default function AhpModal({ items, saved, setSaved, vp, onClose }: Props)
         </div>
 
         <div data-scroll style={{ flex: 1, overflow: 'auto', padding: isNarrow ? 18 : 26 }}>
+          {suggestion && (step === 'criterios' || step === 'pesos') && (
+            <SuggestionCard
+              suggestion={suggestion}
+              saved={saved}
+              open={reopenSuggestion || saved.suggestionHandled !== suggestion.id}
+              justApplied={beforeSuggestion !== null}
+              onApply={applyCareerSuggestion}
+              onIgnore={ignoreSuggestion}
+              onUndo={undoSuggestion}
+              onReopen={() => setReopenSuggestion(true)}
+            />
+          )}
           {step === 'criterios' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               <div style={{ fontSize: 13.5, color: '#6b6b6b', lineHeight: 1.5 }}>Defina o que importa na decisão (de 2 a {MAX_CRITERIA} critérios). Nos próximos passos você diz o quanto cada um pesa mais que os outros e avalia todos os itens em cada critério.</div>
@@ -250,6 +289,67 @@ export default function AhpModal({ items, saved, setSaved, vp, onClose }: Props)
         </div>
       </div>
     </Overlay>
+  )
+}
+
+function formatDate(iso: string): string {
+  const d = new Date(iso)
+  return Number.isNaN(d.getTime()) ? '' : d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })
+}
+
+/**
+ * Cartão da sugestão de pesos: mostra pesos, justificativas, origem e data,
+ * e o que vai mudar (critérios novos/não cobertos). Nunca aplica sozinho.
+ */
+function SuggestionCard({ suggestion, saved, open, justApplied, onApply, onIgnore, onUndo, onReopen }: { suggestion: AhpSuggestion; saved: AhpSaved; open: boolean; justApplied: boolean; onApply: () => void; onIgnore: () => void; onUndo: () => void; onReopen: () => void }) {
+  const box: React.CSSProperties = { border: '1.5px solid #e2e2e2', borderRadius: 14, padding: '12px 14px', marginBottom: 18, background: '#fafafa' }
+  if (justApplied && !open) {
+    return (
+      <div style={{ ...box, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, fontSize: 13 }}>
+        <span>Sugestão de pesos aplicada. Ajuste à vontade no passo "Peso dos critérios".</span>
+        <button onClick={onUndo} className="soft-hover" style={{ ...ghostBtn, padding: '8px 12px', fontSize: 12.5 }}>Desfazer</button>
+      </div>
+    )
+  }
+  if (!open) {
+    return (
+      <button onClick={onReopen} className="soft-hover" style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, marginBottom: 14, fontFamily: mono, fontSize: 11, color: '#6b6b6b', textDecoration: 'underline' }}>
+        Ver sugestão de pesos ({suggestion.source || 'externa'})
+      </button>
+    )
+  }
+  const plan = planSuggestion(saved.criteria, suggestion)
+  const hasOwnWeights = Object.keys(saved.criteriaJudgments).length > 0
+  const top = Math.max(...suggestion.criteria.map((c) => c.weight))
+  const date = formatDate(suggestion.generatedAt)
+  return (
+    <div style={box}>
+      <div style={label}>Sugestão de pesos{suggestion.source ? ` · ${suggestion.source}` : ''}{date ? ` · ${date}` : ''}</div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 10 }}>
+        {suggestion.criteria.map((c) => (
+          <div key={c.name}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 13.5 }}>
+              <span style={{ width: 120, flexShrink: 0, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.name}</span>
+              <Bar value={c.weight} max={top} />
+              <span style={{ fontFamily: mono, fontSize: 12, width: 48, textAlign: 'right' }}>{(c.weight * 100).toFixed(0)}%</span>
+            </div>
+            {c.justification && <div style={{ fontSize: 12, color: '#6b6b6b', lineHeight: 1.4, marginTop: 2 }}>{c.justification}</div>}
+          </div>
+        ))}
+      </div>
+      {(plan.added.length > 0 || plan.uncovered.length > 0 || plan.skipped.length > 0 || hasOwnWeights) && (
+        <ul style={{ fontSize: 12, color: '#8a5a00', lineHeight: 1.45, margin: '10px 0 0', paddingLeft: 18 }}>
+          {hasOwnWeights && <li>Substitui os pesos que você já definiu entre os critérios (as avaliações dos itens ficam).</li>}
+          {plan.added.length > 0 && <li>Acrescenta {plan.added.map((n) => `"${n}"`).join(', ')} — avalie os itens nele depois.</li>}
+          {plan.uncovered.length > 0 && <li>{plan.uncovered.map((n) => `"${n}"`).join(', ')} não está na sugestão e recebe peso intermediário.</li>}
+          {plan.skipped.length > 0 && <li>Sem espaço (máx. {MAX_CRITERIA}) para {plan.skipped.map((n) => `"${n}"`).join(', ')}.</li>}
+        </ul>
+      )}
+      <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+        <button onClick={onIgnore} className="soft-hover" style={{ ...ghostBtn, padding: '10px 14px', fontSize: 13 }}>Ignorar</button>
+        <button onClick={onApply} className="press" style={{ ...primaryBtn, padding: 10, fontSize: 13 }}>Aplicar sugestão</button>
+      </div>
+    </div>
   )
 }
 
