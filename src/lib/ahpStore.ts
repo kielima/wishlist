@@ -35,6 +35,12 @@ export interface AhpSaved {
   itemMode?: ItemMode
   /** Id da última sugestão de pesos já aplicada ou ignorada neste aparelho (ver ahpSuggestion.ts). */
   suggestionHandled?: string
+  /**
+   * Notas sugeridas já aplicadas ou ignoradas neste aparelho: critério
+   * (normalizado, ver `normalizeName`) → `generated_at` da sugestão mais
+   * recente daquele critério. Ver ahpItemScoreSuggestion.ts.
+   */
+  itemScoreHandled?: Record<string, string>
 }
 
 export function emptySaved(): AhpSaved {
@@ -54,6 +60,7 @@ export function loadAhp(): AhpSaved {
           itemRatings: s.itemRatings ?? [],
           itemMode: s.itemMode === 'pares' || s.itemMode === 'notas' ? s.itemMode : undefined,
           suggestionHandled: typeof s.suggestionHandled === 'string' ? s.suggestionHandled : undefined,
+          itemScoreHandled: s.itemScoreHandled && typeof s.itemScoreHandled === 'object' && !Array.isArray(s.itemScoreHandled) ? s.itemScoreHandled : undefined,
         }
       }
     }

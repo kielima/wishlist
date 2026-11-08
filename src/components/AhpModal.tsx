@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { allPairs, analyzeJudgments, CR_LIMIT, judgmentOf, judgmentToStep, mostInconsistentPair, pairCount, pairKey, stepToJudgment, type AhpResult, type Judgments } from '../lib/ahp'
 import { computeFor, effectiveMode, emptySaved, idKey, itemJudgmentsFor, MAX_CRITERIA, ratingOf, type AhpSaved, type ItemMode } from '../lib/ahpStore'
 import { applySuggestion, planSuggestion, type AhpSuggestion } from '../lib/ahpSuggestion'
+import { applyItemScores, isItemScoreHandled, markItemScoreHandled, planItemScores, scoresForCriterion, type CriterionScores, type ItemScorePlan, type ItemScoreSuggestion } from '../lib/ahpItemScoreSuggestion'
 import { initialOf } from '../format'
 import type { WishItem } from '../types'
 import type { Viewport } from '../useViewport'
@@ -18,6 +19,8 @@ interface Props {
   suggestion?: AhpSuggestion | null
   /** Chamado depois de "Aplicar sugestão" (o App passa a ordenar por Ranking AHP). */
   onSuggestionApplied?: () => void
+  /** Notas sugeridas por item/critério (ex.: alinhamento com a carreira). Só são aplicadas por clique. */
+  itemScoreSuggestions?: ItemScoreSuggestion[]
   vp: Viewport
   onClose: () => void
 }
@@ -30,7 +33,7 @@ const primaryBtn: React.CSSProperties = { flex: 1, background: '#0a0a0a', border
 
 type Step = 'criterios' | 'pesos' | 'itens' | 'resultado'
 
-export default function AhpModal({ items, saved, setSaved, suggestion, onSuggestionApplied, vp, onClose }: Props) {
+export default function AhpModal({ items, saved, setSaved, suggestion, onSuggestionApplied, itemScoreSuggestions, vp, onClose }: Props) {
   const { isNarrow } = vp
   const [step, setStep] = useState<Step>('criterios')
   const [critIdx, setCritIdx] = useState(0)
@@ -38,6 +41,9 @@ export default function AhpModal({ items, saved, setSaved, suggestion, onSuggest
   // Estado anterior à aplicação da sugestão, para "Desfazer"; e reabertura manual do cartão.
   const [beforeSuggestion, setBeforeSuggestion] = useState<AhpSaved | null>(null)
   const [reopenSuggestion, setReopenSuggestion] = useState(false)
+  // Idem para as notas sugeridas: avaliações do critério antes de aplicar (para "Desfazer") e reabertura por critério.
+  const [beforeItemScores, setBeforeItemScores] = useState<{ criterion: string; ratings: Record<string, number>; judgments: Record<string, number> } | null>(null)
+  const [reopenItemScores, setReopenItemScores] = useState<string | null>(null)
 
   const { criteria, criteriaJudgments } = saved
   // Todos os itens elegíveis, numa ordem estável (nome) para as comparações.
@@ -113,6 +119,35 @@ export default function AhpModal({ items, saved, setSaved, suggestion, onSuggest
     setSaved(() => ({ ...prev, suggestionHandled: suggestion?.id ?? prev.suggestionHandled }))
     setBeforeSuggestion(null)
   }
+  function applySuggestedScores(cs: CriterionScores, replace: boolean) {
+    const c = critIdx
+    const criterion = criteria[c]
+    if (criterion === undefined) return
+    setBeforeItemScores({ criterion, ratings: { ...saved.itemRatings[c] }, judgments: { ...saved.itemJudgments[c] } })
+    setSaved((s) => applyItemScores(s, c, ids, mode, cs, { replace }))
+    setReopenItemScores(null)
+  }
+  function ignoreSuggestedScores(cs: CriterionScores) {
+    const criterion = criteria[critIdx]
+    if (criterion === undefined) return
+    setSaved((s) => markItemScoreHandled(s, criterion, cs))
+    setReopenItemScores(null)
+  }
+  function undoSuggestedScores() {
+    if (!beforeItemScores) return
+    const prev = beforeItemScores
+    // Só o critério afetado volta; a sugestão continua marcada como "já vista".
+    setSaved((s) => {
+      const c = s.criteria.indexOf(prev.criterion)
+      if (c < 0) return s
+      const ratings = Array.from({ length: s.criteria.length }, (_, k) => s.itemRatings[k] ?? {})
+      const judgments = Array.from({ length: s.criteria.length }, (_, k) => s.itemJudgments[k] ?? {})
+      ratings[c] = prev.ratings
+      judgments[c] = prev.judgments
+      return { ...s, itemRatings: ratings, itemJudgments: judgments }
+    })
+    setBeforeItemScores(null)
+  }
   function reset() {
     setSaved(() => emptySaved())
     setStep('criterios')
@@ -121,6 +156,11 @@ export default function AhpModal({ items, saved, setSaved, suggestion, onSuggest
 
   const itemJudgmentsPos = useMemo(() => criteria.map((_, c) => itemJudgmentsFor(saved, c, ids, mode)), [saved, criteria, ids, mode])
   const result = useMemo(() => computeFor(saved, ids, mode), [saved, ids, mode])
+  const currentCriterion = criteria[critIdx] ?? ''
+  const critScores = useMemo(
+    () => (itemScoreSuggestions && itemScoreSuggestions.length > 0 && currentCriterion ? scoresForCriterion(itemScoreSuggestions, currentCriterion, ids) : null),
+    [itemScoreSuggestions, currentCriterion, ids],
+  )
 
   if (items.length < 2) {
     return (
@@ -248,6 +288,20 @@ export default function AhpModal({ items, saved, setSaved, suggestion, onSuggest
             />
           )}
 
+          {step === 'itens' && critScores && (
+            <ItemScoreCard
+              key={currentCriterion}
+              scores={critScores}
+              plan={planItemScores(saved, critIdx, ids, mode, critScores)}
+              open={reopenItemScores === currentCriterion || !isItemScoreHandled(saved, currentCriterion, critScores)}
+              justApplied={beforeItemScores?.criterion === currentCriterion}
+              onApply={(replace) => applySuggestedScores(critScores, replace)}
+              onIgnore={() => ignoreSuggestedScores(critScores)}
+              onUndo={undoSuggestedScores}
+              onReopen={() => setReopenItemScores(currentCriterion)}
+            />
+          )}
+
           {step === 'itens' && mode === 'pares' && (
             <PairwiseForm
               judgments={itemJudgmentsPos[critIdx] ?? {}}
@@ -265,6 +319,7 @@ export default function AhpModal({ items, saved, setSaved, suggestion, onSuggest
               onChange={(id, v) => setItemRating(critIdx, id, v)}
               criterion={criteria[critIdx]!}
               weights={result.perCriterion[critIdx]!.weights}
+              suggested={critScores?.byItem}
             />
           )}
 
@@ -353,15 +408,69 @@ function SuggestionCard({ suggestion, saved, open, justApplied, onApply, onIgnor
   )
 }
 
+/**
+ * Cartão das notas sugeridas no critério atual: quantos itens têm nota, o que
+ * falta avaliar e o que seria substituído. Nunca aplica sozinho; por padrão só
+ * preenche o que falta.
+ */
+function ItemScoreCard({ scores, plan, open, justApplied, onApply, onIgnore, onUndo, onReopen }: { scores: CriterionScores; plan: ItemScorePlan; open: boolean; justApplied: boolean; onApply: (replace: boolean) => void; onIgnore: () => void; onUndo: () => void; onReopen: () => void }) {
+  const [replace, setReplace] = useState(false)
+  const box: React.CSSProperties = { border: '1.5px solid #e2e2e2', borderRadius: 14, padding: '12px 14px', marginBottom: 18, background: '#fafafa' }
+  const n = scores.byItem.size
+  const nItens = `${n} ${n === 1 ? 'item' : 'itens'}`
+  if (justApplied && !open) {
+    return (
+      <div style={{ ...box, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, fontSize: 13 }}>
+        <span>Notas sugeridas aplicadas. Ajuste à vontade abaixo.</span>
+        <button onClick={onUndo} className="soft-hover" style={{ ...ghostBtn, padding: '8px 12px', fontSize: 12.5 }}>Desfazer</button>
+      </div>
+    )
+  }
+  if (!open) {
+    return (
+      <button onClick={onReopen} className="soft-hover" style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, marginBottom: 14, fontFamily: mono, fontSize: 11, color: '#6b6b6b', textDecoration: 'underline' }}>
+        Ver notas sugeridas ({nItens})
+      </button>
+    )
+  }
+  const date = formatDate(scores.latest)
+  const unit = (k: number) => (plan.unit === 'pares' ? `${k} ${k === 1 ? 'par' : 'pares'}` : `${k} ${k === 1 ? 'item' : 'itens'}`)
+  const nothing = plan.fill === 0 && !(replace && plan.replace > 0)
+  return (
+    <div style={box}>
+      <div style={label}>Notas sugeridas{date ? ` · ${date}` : ''}</div>
+      <div style={{ fontSize: 13.5, fontWeight: 600, marginTop: 6 }}>Notas sugeridas a partir dos objetivos de carreira: {nItens}</div>
+      <div style={{ fontSize: 12, color: '#6b6b6b', lineHeight: 1.45, marginTop: 4 }}>
+        {plan.fill > 0 ? `${unit(plan.fill)} sem avaliação recebem a nota sugerida.` : 'Tudo o que tem nota sugerida já foi avaliado por você.'}
+        {plan.replace > 0 && ` ${unit(plan.replace)} já ${plan.replace === 1 ? 'avaliado difere' : 'avaliados diferem'} da sugestão e só ${plan.replace === 1 ? 'muda' : 'mudam'} se você pedir.`}
+        {plan.unit === 'itens' && ' A nota sugerida de cada item aparece abaixo dele.'}
+      </div>
+      {plan.replace > 0 && (
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12.5, marginTop: 10, cursor: 'pointer', color: replace ? '#8a5a00' : '#0a0a0a' }}>
+          <input type="checkbox" checked={replace} onChange={(e) => setReplace(e.target.checked)} />
+          Substituir também as que já avaliei ({unit(plan.replace)})
+        </label>
+      )}
+      <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+        <button onClick={onIgnore} className="soft-hover" style={{ ...ghostBtn, padding: '10px 14px', fontSize: 13 }}>Ignorar</button>
+        <button onClick={() => onApply(replace)} disabled={nothing} className="press" style={{ ...primaryBtn, padding: 10, fontSize: 13, opacity: nothing ? 0.4 : 1, cursor: nothing ? 'default' : 'pointer' }}>
+          {replace && plan.replace > 0 ? 'Aplicar e substituir' : 'Aplicar nas que faltam'}
+        </button>
+      </div>
+    </div>
+  )
+}
+
 const RATING_WORDS: Record<number, string> = { 1: 'péssimo', 2: 'muito fraco', 3: 'fraco', 4: 'abaixo da média', 5: 'médio', 6: 'acima da média', 7: 'bom', 8: 'muito bom', 9: 'excelente' }
 
 /** Modo de notas: todos os itens numa lista, cada um com nota 1–9 no critério. */
-function RatingForm({ items, ratingOf, onChange, criterion, weights }: { items: WishItem[]; ratingOf: (id: string) => number; onChange: (id: string, v: number) => void; criterion: string; weights: number[] }) {
+function RatingForm({ items, ratingOf, onChange, criterion, weights, suggested }: { items: WishItem[]; ratingOf: (id: string) => number; onChange: (id: string, v: number) => void; criterion: string; weights: number[]; suggested?: Map<string, ItemScoreSuggestion> }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       <div style={{ fontSize: 13.5, color: '#6b6b6b', lineHeight: 1.5 }}>Em "{criterion}", dê uma nota de 1 (pior) a 9 (melhor) a cada item. O que vale é a proporção entre as notas: um 8 conta o dobro de um 4.</div>
       {items.map((it, k) => {
         const v = ratingOf(it.id)
+        const sug = suggested?.get(it.id)
         return (
           <div key={it.id} style={{ border: '1.5px solid #ececec', borderRadius: 14, padding: '10px 14px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -371,6 +480,12 @@ function RatingForm({ items, ratingOf, onChange, criterion, weights }: { items: 
             </div>
             <input type="range" min={1} max={9} step={1} value={v} aria-label={`Nota de ${it.name} em ${criterion}`} onChange={(e) => onChange(it.id, Number(e.target.value))} style={{ width: '100%', margin: '8px 0 2px' }} />
             <div style={{ fontFamily: mono, fontSize: 11, color: '#9a9a9a' }}>{v} · {RATING_WORDS[v]}</div>
+            {sug && (
+              <div style={{ fontSize: 11.5, color: '#6b6b6b', lineHeight: 1.4, marginTop: 4 }}>
+                <span style={{ fontFamily: mono }}>sugestão {sug.score}</span>
+                {sug.justification && ` · ${sug.justification}`}
+              </div>
+            )}
           </div>
         )
       })}

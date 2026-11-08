@@ -1,5 +1,6 @@
 import { supabase } from './supabase'
 import { parseSuggestion, type AhpSuggestion } from './lib/ahpSuggestion'
+import { parseItemScoreRows, type ItemScoreSuggestion } from './lib/ahpItemScoreSuggestion'
 
 /**
  * Última sugestão de pesos AHP da pessoa logada (tabela
@@ -19,4 +20,23 @@ export async function fetchLatestSuggestion(): Promise<AhpSuggestion | null> {
     .maybeSingle()
   if (error || !data) return null
   return parseSuggestion(data)
+}
+
+/**
+ * Notas sugeridas por item (tabela `wishlist.ahp_item_score_suggestions`,
+ * migration 0008), já reduzidas à mais recente por (item, critério). Só
+ * leitura, como a sugestão de pesos.
+ *
+ * Devolve [] sem Supabase (modo local), sem linhas, ou se a tabela ainda não
+ * existir (migration não aplicada) — nesse caso o AHP segue igual.
+ */
+export async function fetchItemScoreSuggestions(): Promise<ItemScoreSuggestion[]> {
+  if (!supabase) return []
+  const { data, error } = await supabase
+    .from('ahp_item_score_suggestions')
+    .select('item_id, criterion, score, justification, generated_at')
+    .order('generated_at', { ascending: false })
+    .limit(5000)
+  if (error || !data) return []
+  return parseItemScoreRows(data)
 }
