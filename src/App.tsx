@@ -50,7 +50,7 @@ function errorMessage(e: unknown): string {
 
 function WishlistApp({ onSignOut }: { onSignOut?: () => void }) {
   const { items, loading: itemsLoading, create, update, remove } = useWishlist()
-  // Decisão AHP (substitui o antigo Duelo): estado por aparelho, também usado na ordenação "Ranking AHP".
+  // Decisão AHP: estado por aparelho, também usado na ordenação "Ranking AHP".
   const [ahp, setAhpState] = useState<AhpSaved>(loadAhp)
   const setAhp = useCallback((fn: (s: AhpSaved) => AhpSaved) => {
     setAhpState((prev) => {
@@ -149,8 +149,7 @@ function WishlistApp({ onSignOut }: { onSignOut?: () => void }) {
     return storeCounts['Outros'] ? [...names, 'Outros'] : names
   }, [storeCounts])
 
-  // Critérios do drawer de Filtros + busca — compartilhados entre a lista visível
-  // e os itens da decisão AHP, para que ela respeite o que está filtrado na tela.
+  // Critérios do drawer de Filtros + busca, aplicados à lista visível.
   const matchesRefine = useMemo(() => {
     const q = query.trim().toLowerCase()
     const upper = priceMax >= PRICE_MAX ? Infinity : priceMax
@@ -171,11 +170,12 @@ function WishlistApp({ onSignOut }: { onSignOut?: () => void }) {
     }
   }, [categories, stores, itemStore, priorities, showBlocked, items, priceMin, priceMax, query, rates])
 
-  // Itens da decisão AHP: todos os "desejados", restritos aos filtros ativos
-  // (preço, categoria, loja, prioridade, busca) — não à aba de status atual.
+  // Itens da decisão AHP: todos os "desejados", exceto os de prioridade "Won't",
+  // ignorando os filtros da tela e a aba atual — assim o "Ranking AHP" não muda
+  // conforme o filtro.
   const ahpCandidates = useMemo(
-    () => items.filter((i) => i.status === 'wanted' && matchesRefine(i)),
-    [items, matchesRefine],
+    () => items.filter((i) => i.status === 'wanted' && i.priority !== 'wont'),
+    [items],
   )
 
   // Pontuação AHP por item, calculada sobre o mesmo conjunto que entra na decisão.
