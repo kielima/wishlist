@@ -17,7 +17,7 @@ Cada desejo tem: nome, descrição, foto, link, preço, prioridade (MoSCoW:
 ### Backend Supabase (projeto compartilhado)
 
 A wishlist não tem projeto Supabase próprio: usa o mesmo projeto do
-app-produtividade, com as tabelas (`items`, `item_ratings`, `app_version`) num
+app-produtividade, com as tabelas (`items`, `app_version` e as de sugestões do AHP) num
 schema dedicado `wishlist` em vez do `public`. O schema é definido uma vez no
 `createClient` (`src/supabase.ts`), então os repositórios seguem chamando
 `.from('items')` normalmente.
@@ -30,10 +30,12 @@ no repo do app-produtividade.
 ## Decisão com AHP
 
 O botão **Decidir** abre um assistente AHP (Saaty) que entra com **todos** os
-itens desejados dentro dos filtros ativos — substituiu o antigo Duelo de 2 em 2.
+itens desejados, exceto os de prioridade "Won't" — os filtros da tela não se
+aplicam, então o "Ranking AHP" é o mesmo com qualquer filtro.
 Critérios com pesos por comparação par-a-par (escala 1–9), depois todos os itens
 avaliados em cada critério, de um de dois modos: comparação em pares (padrão até
-6 itens) ou nota 1–9 por item (modo de classificação do AHP, padrão acima disso).
+7 itens, 21 pares por critério) ou nota 1–9 por item (modo de classificação do
+AHP, padrão com 8 ou mais). A pessoa pode trocar o modo; a escolha fica salva.
 Ranking final, razão de consistência (CR, aviso quando ≥ 0,1) e a ordenação
 "Ranking AHP" na lista. Matemática pura em `src/lib/ahp.ts`, estado em
 `src/lib/ahpStore.ts` (`localStorage`, por aparelho, sem Supabase).
@@ -43,9 +45,6 @@ carreira (tabela `wishlist.ahp_weight_suggestions`, só leitura no app) pode
 aparecer no assistente com "Aplicar sugestão" / "Ignorar" — nunca é aplicada
 sozinha. Como funciona e como gerar: [`docs/SUGESTAO_AHP_CARREIRA.md`](docs/SUGESTAO_AHP_CARREIRA.md).
 Testes das funções puras: `npm test` (vitest).
-
-Os ratings Glicko-2 dos duelos antigos continuam guardados (tabela Dexie
-`duelRatings` e a tabela do Supabase); só a tela de Duelo saiu.
 
 ## Rodando localmente
 

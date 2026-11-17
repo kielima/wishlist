@@ -2,22 +2,22 @@
  * Estado persistido da decisão AHP (por aparelho, em localStorage) e a ponte
  * entre ele e a matemática pura de `ahp.ts`.
  *
- * Desde a substituição do Duelo, a decisão AHP entra com TODOS os itens
- * elegíveis de uma vez (desejados, dentro dos filtros ativos) — não há mais
- * seleção de 2–8 itens. Para cada critério, os itens são avaliados de um de
+ * A decisão AHP entra com TODOS os itens elegíveis de uma vez (desejados,
+ * exceto os de prioridade "Won't"; os filtros da tela não se aplicam). Para cada critério, os itens são avaliados de um de
  * dois modos:
  *  - `pares`: comparação par-a-par clássica (escala 1–9), n·(n−1)/2 pares;
  *  - `notas`: nota 1–9 por item (modo de classificação do AHP). A nota vira a
  *    matriz consistente a_ij = nota_i / nota_j, então a síntese é a mesma.
- * Sem escolha explícita, o modo segue o número de itens (`AUTO_PAIRS_MAX`).
+ * Sem escolha explícita, o modo segue o número de itens (`AUTO_PAIRS_MAX`):
+ * até 7 itens, pares; 8 ou mais, notas. A escolha salva sempre prevalece.
  */
 import { allPairs, computeAhp, pairKey, type AhpResult, type Judgments } from './ahp'
 
 export const STORAGE_KEY = 'wishlist.ahp.v1'
 export const MAX_CRITERIA = 8
 export const DEFAULT_CRITERIA = ['Preço', 'Utilidade', 'Desejo']
-/** Até este número de itens o modo automático usa pares (6 itens = 15 pares por critério). */
-export const AUTO_PAIRS_MAX = 6
+/** Até este número de itens o modo automático usa pares (7 itens = 21 pares por critério). */
+export const AUTO_PAIRS_MAX = 7
 /** Nota de um item ainda não avaliado (meio da escala 1–9). */
 export const DEFAULT_RATING = 5
 

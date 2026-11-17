@@ -13,7 +13,7 @@ export const isSupabaseConfigured = Boolean(url && anonKey)
  * O projeto é compartilhado com o app-produtividade (consolidação dos dois
  * projetos num só), então as tabelas da wishlist vivem no schema `wishlist`
  * em vez do `public` — ver supabase/migrations/0005. Definir o schema aqui
- * faz todo `.from('items')` / `.from('item_ratings')` / `.from('app_version')`
+ * faz todo `.from('items')` / `.from('app_version')`
  * resolver para `wishlist.*` sem mudar os repositórios.
  *
  * Storage e Auth não são afetados: usam endpoints próprios, fora do PostgREST.

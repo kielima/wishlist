@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { allPairs, analyzeJudgments, CR_LIMIT, judgmentOf, judgmentToStep, mostInconsistentPair, pairCount, pairKey, stepToJudgment, type AhpResult, type Judgments } from '../lib/ahp'
-import { computeFor, effectiveMode, emptySaved, idKey, itemJudgmentsFor, MAX_CRITERIA, ratingOf, type AhpSaved, type ItemMode } from '../lib/ahpStore'
+import { AUTO_PAIRS_MAX, computeFor, effectiveMode, emptySaved, idKey, itemJudgmentsFor, MAX_CRITERIA, ratingOf, type AhpSaved, type ItemMode } from '../lib/ahpStore'
 import { applySuggestion, planSuggestion, type AhpSuggestion } from '../lib/ahpSuggestion'
 import { applyItemScores, isItemScoreHandled, markItemScoreHandled, planItemScores, scoresForCriterion, type CriterionScores, type ItemScorePlan, type ItemScoreSuggestion } from '../lib/ahpItemScoreSuggestion'
 import { initialOf } from '../format'
@@ -10,7 +10,7 @@ import { Overlay } from './DetailModal'
 import { CloseIcon } from './Icons'
 
 interface Props {
-  /** Todos os itens elegíveis (desejados, dentro dos filtros ativos) — entram todos na decisão. */
+  /** Todos os itens elegíveis (desejados, exceto "Won't"; os filtros da tela não se aplicam) — entram todos na decisão. */
   items: WishItem[]
   /** Estado da decisão, guardado pelo App (que também o usa na ordenação "Ranking AHP"). */
   saved: AhpSaved
@@ -167,7 +167,7 @@ export default function AhpModal({ items, saved, setSaved, suggestion, onSuggest
       <Overlay isNarrow={isNarrow} onClose={onClose}>
         <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', borderRadius: isNarrow ? 0 : 20, width: 380, maxWidth: '100%', padding: 28, textAlign: 'center', animation: 'modalIn .3s cubic-bezier(.2,.7,.2,1) both' }}>
           <div style={{ fontFamily: display, fontSize: 19, fontWeight: 700, marginBottom: 8 }}>Poucos itens pra decidir</div>
-          <div style={{ fontSize: 13.5, color: '#6b6b6b', lineHeight: 1.5 }}>É preciso ter ao menos 2 itens "desejados" dentro dos filtros ativos para comparar. Ajuste os filtros e tente de novo.</div>
+          <div style={{ fontSize: 13.5, color: '#6b6b6b', lineHeight: 1.5 }}>É preciso ter ao menos 2 itens "desejados" (fora os de prioridade "Won't") para comparar.</div>
           <button onClick={onClose} className="press" style={{ ...primaryBtn, marginTop: 20, width: '100%', flex: 'none' }}>Fechar</button>
         </div>
       </Overlay>
@@ -245,7 +245,7 @@ export default function AhpModal({ items, saved, setSaved, suggestion, onSuggest
                 </form>
               )}
 
-              <div style={{ ...label, marginTop: 6 }}>Itens na decisão · todos os {ids.length} desejados nos filtros ativos</div>
+              <div style={{ ...label, marginTop: 6 }}>Itens na decisão · todos os {ids.length} desejados, exceto "Won't"</div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                 {sorted.map((it) => (
                   <span key={it.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: '#f6f6f6', borderRadius: 9, padding: '4px 9px 4px 4px', fontSize: 12.5, maxWidth: '100%' }}>
@@ -270,9 +270,9 @@ export default function AhpModal({ items, saved, setSaved, suggestion, onSuggest
                   )
                 })}
               </div>
-              {mode === 'pares' && pairsPerCrit > 15 && (
+              {mode === 'pares' && ids.length > AUTO_PAIRS_MAX && (
                 <div style={{ fontSize: 12.5, lineHeight: 1.45, borderRadius: 12, padding: '10px 14px', background: '#fff6e5', color: '#8a5a00' }}>
-                  Com {ids.length} itens são {pairsPerCrit * criteria.length} comparações no total. Dar notas mede o mesmo de forma bem mais rápida.
+                  Com {ids.length} itens são {pairsPerCrit * criteria.length} comparações no total. A partir de {AUTO_PAIRS_MAX + 1} itens o padrão é dar notas, que mede o mesmo de forma bem mais rápida.
                 </div>
               )}
             </div>

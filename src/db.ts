@@ -1,6 +1,5 @@
 import Dexie, { type Table } from 'dexie'
 import type { WishItem } from './types'
-import type { DuelRatingRow } from './duelRepository'
 
 /**
  * Banco local em IndexedDB (via Dexie). É a fonte de verdade na Fase 1.
@@ -8,8 +7,6 @@ import type { DuelRatingRow } from './duelRepository'
  */
 class WishlistDB extends Dexie {
   items!: Table<WishItem, string>
-  /** Ratings Glicko-2 do ranking por duelos, uma linha por item. */
-  duelRatings!: Table<DuelRatingRow, string>
 
   constructor() {
     super('wishlist')
@@ -20,6 +17,11 @@ class WishlistDB extends Dexie {
     this.version(2).stores({
       items: 'id, status, priority, updatedAt, *categories',
       duelRatings: 'itemId',
+    })
+    // v3: apaga a tabela do Duelo, substituído pelo AHP (#0551).
+    this.version(3).stores({
+      items: 'id, status, priority, updatedAt, *categories',
+      duelRatings: null,
     })
   }
 }

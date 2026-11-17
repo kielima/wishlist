@@ -25,6 +25,8 @@ Passos para ligar a sincronização. Só precisa fazer uma vez.
    e clique **Run**.
 3. Deve aparecer "Success". Isso cria o schema `wishlist` com `items`,
    `item_ratings` e `app_version`, todas com segurança por usuário (RLS).
+   (`item_ratings` guardava os ratings do antigo Duelo e é removida pela
+   [`0009_drop_item_ratings.sql`](../supabase/migrations/0009_drop_item_ratings.sql).)
 4. **Project Settings → API → Exposed schemas:** adicione `wishlist` à lista.
    Sem isso o PostgREST recusa todas as consultas do app.
 
